@@ -72,3 +72,13 @@ Controlled streaming measurements: Node24 shell5ms/completion1827ms, Node26
 shell4ms/completion1826ms with1800ms injected into actual React resume. These are
 local protocol tests, not production latency guarantees. Browser and consuming-app
 production evidence are recorded with the release/deployment after publication.
+
+## Platform release 0.3.0
+
+19 unit regressions include signed-cookie tamper/expiry/duplicate/secret checks,
+CDN representation/privacy/freshness limits and image source/parameter security.
+The packed real Workerd consumer also verifies public HTML MISS→HIT, two fresh
+Draft Mode responses without overwriting public data, invalid-cookie rejection,
+CDN invalidation, actual Images-binding PNG→WebP output and derivative HIT.
+The original delayed-resume, ISR, restart persistence and isolation checks remain.
+No production authorization or QA endpoint is shipped.

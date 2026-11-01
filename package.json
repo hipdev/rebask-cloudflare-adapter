@@ -1,7 +1,7 @@
 {
   "name": "rebask-cloudflare-adapter",
-  "version": "0.2.0",
-  "description": "Community Rebask adapter for Cloudflare Workers: native PPR, durable caching, ISR and tag invalidation.",
+  "version": "0.3.0",
+  "description": "Community Rebask adapter for Cloudflare Workers: SSR, RSC, PPR, durable ISR, CDN pages, signed Draft Mode and image optimization.",
   "type": "module",
   "license": "MIT",
   "author": "hipdev",
@@ -37,6 +37,18 @@
     "./durable-object": {
       "types": "./dist/durable-object.d.ts",
       "import": "./dist/durable-object.js"
+    },
+    "./draft": {
+      "types": "./dist/draft.d.ts",
+      "import": "./dist/draft.js"
+    },
+    "./edge": {
+      "types": "./dist/edge.d.ts",
+      "import": "./dist/edge.js"
+    },
+    "./images": {
+      "types": "./dist/images.d.ts",
+      "import": "./dist/images.js"
     }
   },
   "files": [

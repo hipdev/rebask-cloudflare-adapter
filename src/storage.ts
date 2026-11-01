@@ -1,3 +1,4 @@
+import { isDraftMode, notePageEntry } from "./runtime.js";
 import { createHash } from "node:crypto";
 import { BaseCacheStorage, type CacheEntry } from "@rebask/core/cache";
 
@@ -15,6 +16,7 @@ export class BuildArtifactStorage extends BaseCacheStorage {
     super();
   }
   protected async read(key: string): Promise<CacheEntry | null> {
+    if (isDraftMode()) return null;
     if (
       !/^(ph|pr|ps):/.test(key) ||
       key.split(":")[1] !== this.artifacts.deploymentId
@@ -23,6 +25,7 @@ export class BuildArtifactStorage extends BaseCacheStorage {
     const entry =
       this.artifacts.entries[createHash("sha256").update(key).digest("hex")];
     if (!entry || (entry.type !== 1 && entry.type !== 2)) return null;
+    notePageEntry(entry);
     return structuredClone(entry);
   }
   async set() {}

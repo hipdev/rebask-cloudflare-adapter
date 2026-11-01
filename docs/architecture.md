@@ -1,4 +1,4 @@
-# Architecture and scope (0.2.0)
+# Architecture and scope (0.3.0)
 
 `rebask-cloudflare-adapter` is the new unscoped package name. The original
 `@hipdev/rebask-cloudflare@0.1.0` remains available with its original immutable behavior.
@@ -67,8 +67,9 @@ bounded implementation, not a claim of unlimited scale or automatic global local
 
 ## Streaming and deployment
 
-App responses remain private/no-store; this implementation does not add public CDN
-page caching or expose viewer responses to Cache API. Assets retain normal caching.
+Browser app responses remain private/no-store. Opt-in exact public paths can store
+fresh complete HTML in Cache API behind a durable generation gate. PPR continuations
+and viewer responses never enter that cache. Assets retain normal caching.
 Resumed HTML uses identity/manual encoding to avoid compression buffering the shell.
 The generated config pins the production renderer, including Wrangler preview.
 Native Node24 RSC trailer compatibility remains included.
@@ -81,8 +82,8 @@ Cloudflare storage/RPC costs. Immutable mode needs no storage binding. See
 ## Remaining limits
 
 Core0.2.0/Vite8.3.5 and the standard build layout remain pinned. Named Wrangler
-environments and advanced relative binding paths are unsupported. There is no
-integrated Draft Mode, image optimization adapter, public CDN invalidation layer,
+environments and advanced relative binding paths are unsupported. Optional CDN HTML caching, signed adapter Draft Mode and public local image
+optimization are documented in [platform features](platform-features.md). There is no
 queue/WebSocket handler or automatic private-data policy. Authorization, backend
 queries, media access and origin allowlists remain the application's responsibility.
 Never cache auth tokens, permissions, private media grants or viewer-specific data.

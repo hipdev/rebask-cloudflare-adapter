@@ -1,11 +1,11 @@
-# Rebask PPR on Cloudflare Workers
+# Rebask Cloudflare Adapter
 
 [![CI](https://github.com/hipdev/rebask-cloudflare-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/hipdev/rebask-cloudflare-adapter/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/rebask-cloudflare-adapter)](https://www.npmjs.com/package/rebask-cloudflare-adapter)
 
-A community adapter that brings **Rebask's native build-time Partial Prerendering**
-to Cloudflare Workers. Serve the prerendered page frame immediately, then stream
-React's request-specific continuation. MIT licensed. Maintained by [hipdev](https://github.com/hipdev).
+A community **Rebask deployment adapter for Cloudflare Workers**: SSR, React Server
+Components, streaming Partial Prerendering, durable caching/ISR, CDN page caching,
+signed Draft Mode and public image optimization. MIT licensed. Maintained by [hipdev](https://github.com/hipdev).
 
 **Experimental, version-pinned:** this release targets `@rebask/core@0.2.0` and
 `vite@8.3.5`. It is independent of Rebask and Cloudflare and is not their official
@@ -22,14 +22,25 @@ adapter. [Español](README.es.md) · [Agent instructions](AGENTS.md) · [Archite
 - A Node 24 RSC trailer compatibility transform, including late request search reads.
 
 Enable **durable runtime caching, native ISR and tag invalidation** with
-`cloudflarePpr({ durableCache: true })`. This adds sixteen SQLite Durable Objects
+`cloudflareAdapter({ durableCache: true })`. This adds sixteen SQLite Durable Objects
 and owner-fenced regeneration leases. Native `use cache`, `durableCache`, HTML/RSC
-promotion and time/tag-based refresh use that storage. The default `cloudflarePpr()`
+promotion and time/tag-based refresh use that storage. The default `cloudflareAdapter()`
 keeps build-only immutable storage. Neither mode authorizes users or makes private
 data safe to share. [Architecture, budgets and remaining limits](docs/architecture.md).
 
 The new package name is `rebask-cloudflare-adapter`; the original scoped0.1.0 package
 remains available. Do not install both adapters in the same build.
+
+## Platform features in 0.3.0
+
+- Opt-in per-data-center CDN caching for fresh complete public HTML, fenced by tag invalidation.
+- Signed Draft Mode cookies and request-local bypass of page/function caches.
+- Cloudflare Images binding with a Rebask `<Image>`-compatible endpoint for public local raster assets.
+- Backwards-compatible `cloudflarePpr` alias.
+
+These services are opt-in and have specific limits. Read [configuration, security,
+costs and scope](docs/platform-features.md) before enabling them. PPR continuations,
+viewer permissions and private media are never public CDN entries.
 
 ## Quick start
 
@@ -37,7 +48,7 @@ Use Node 24 or newer. In an existing Rebask app:
 
 ```sh
 npm install --save-exact @rebask/core@0.2.0 react@19.3.1 react-dom@19.3.1
-npm install -D --save-exact rebask-cloudflare-adapter@0.2.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
+npm install -D --save-exact rebask-cloudflare-adapter@0.3.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
 ```
 
 `vite.config.ts` (keep the native Rebask build; replace the deployment adapter):
@@ -47,10 +58,10 @@ import { defineConfig } from "vite";
 import rsc from "@vitejs/plugin-rsc";
 import react from "@vitejs/plugin-react";
 import { rebask } from "@rebask/core/vite";
-import { cloudflarePpr } from "rebask-cloudflare-adapter";
+import { cloudflareAdapter } from "rebask-cloudflare-adapter";
 
 export default defineConfig({
-  plugins: [rsc(), react(), rebask(), cloudflarePpr({ durableCache: true })],
+  plugins: [rsc(), react(), rebask(), cloudflareAdapter({ durableCache: true })],
 });
 ```
 

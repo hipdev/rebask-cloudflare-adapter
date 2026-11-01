@@ -1,6 +1,6 @@
 # rebask-cloudflare-adapter
 
-> Community MIT Cloudflare Workers adapter for native Rebask build-time PPR.
+> Community MIT Cloudflare Workers adapter for Rebask SSR, RSC, native PPR, durable ISR, public CDN HTML, signed Draft Mode and image optimization.
 > Experimental. Exact compatibility: @rebask/core0.2.0, Vite8.3.5, Node24+.
 
 - [Quick start](https://github.com/hipdev/rebask-cloudflare-adapter/blob/main/README.md)
@@ -13,3 +13,5 @@
 Configure cloudflarePpr() after native Rebask plugins and createCacheHandler() in
 rebask.config.ts. Build once; deploy .output/server/wrangler.json. Never publish
 private snapshots as assets. Use cloudflarePpr({ durableCache: true }) for bounded durable cache, native ISR and tag invalidation; default remains immutable. Read architecture before enabling shared runtime data.
+
+- [Platform services and security](docs/platform-features.md)

@@ -6,12 +6,46 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { patchRscTrailer } from "./compatibility.js";
 
+import type { PageCacheOptions } from "./edge.js";
+import type { ImageOptions } from "./images.js";
+
+export interface CloudflareAdapterOptions {
+  durableCache?: boolean;
+  pageCache?: PageCacheOptions;
+  draftMode?: boolean;
+  images?: ImageOptions;
+}
+
 const virtualArtifacts = "virtual:rebask-cloudflare/artifacts";
 
-/** Dedicated Workers adapter for pinned Rebask0.2.0's native PPR cache/resume path. */
-export function cloudflarePpr(
-  options: { durableCache?: boolean } = {},
+/** Community deployment adapter for pinned Rebask 0.2.0. */
+export function cloudflareAdapter(
+  options: CloudflareAdapterOptions = {},
 ): Plugin {
+  assert.ok(
+    !options.pageCache || options.durableCache,
+    "CDN pages require durableCache for invalidation fencing",
+  );
+  for (const path of options.pageCache?.paths ?? [])
+    assert.ok(
+      /^\/(?!\/)[^?#%\\]*$/.test(path),
+      "CDN paths must be exact absolute local paths",
+    );
+  assert.ok(
+    !options.pageCache ||
+      (Number.isInteger(options.pageCache.maxAge ?? 60) &&
+        (options.pageCache.maxAge ?? 60) > 0 &&
+        (options.pageCache.maxAge ?? 60) <= 3600),
+    "CDN maxAge must be 1–3600 seconds",
+  );
+  for (const prefix of options.images?.localPrefixes ?? [])
+    assert.ok(
+      prefix.startsWith("/") &&
+        !prefix.startsWith("//") &&
+        prefix.endsWith("/") &&
+        !/[?#%\\]/.test(prefix),
+      "Image prefixes must be absolute public directory paths ending in /",
+    );
   let runtimeFile: string;
   let root: string;
   let artifactFile: string;
@@ -60,12 +94,38 @@ export function cloudflarePpr(
         (id === "./runtime.js" &&
           importer
             ?.replaceAll("\\", "/")
-            .endsWith("/rebask-cloudflare-adapter/dist/durable-storage.js"))
+            .match(
+              /\/rebask-cloudflare-adapter\/dist\/(?:durable-storage|storage)\.js$/,
+            ))
       )
         return { id: runtimeFile, external: true };
       if (id === virtualArtifacts) return { id: artifactFile, external: true };
     },
     transform(code, id) {
+      if (
+        options.draftMode &&
+        /\/@rebask\/core\/dist\/lib\/(use-cache-runtime|durable-cache)\.js$/.test(
+          id.replaceAll("\\", "/"),
+        )
+      ) {
+        const condition = id.includes("use-cache-runtime")
+          ? "if (isDevelopment) {"
+          : "if (import.meta.env.DEV) {";
+        assert.equal(
+          code.split(condition).length,
+          2,
+          "Rebask cache bypass changed; review Draft Mode compatibility",
+        );
+        return {
+          code:
+            'import { isDraftMode } from "rebask-cloudflare-adapter/runtime";\n' +
+            code.replace(
+              condition,
+              condition.replace(")", " || isDraftMode())"),
+            ),
+          map: null,
+        };
+      }
       if (
         options.durableCache &&
         id
@@ -198,20 +258,57 @@ export function cloudflarePpr(
         await writeFile(
           resolve(output, "server/worker.mjs"),
           `import app from "../../dist/rsc/index.js";
-${options.durableCache ? 'import { withCacheRequest } from "../../.cache/cloudflare/runtime.mjs";\nexport { RebaskCache } from "rebask-cloudflare-adapter/durable-object";' : ""}
+import { withCacheRequest, pageFreshUntil } from "../../.cache/cloudflare/runtime.mjs";
+import { verifyDraftCookie } from "rebask-cloudflare-adapter/draft";
+import { pageCacheEligible, pageCacheTTL, edgeGeneration, edgeKey } from "rebask-cloudflare-adapter/edge";
+import { optimizeImage } from "rebask-cloudflare-adapter/images";
+${options.durableCache ? 'export { RebaskCache } from "rebask-cloudflare-adapter/durable-object";' : ""}
+const options = ${JSON.stringify(options)};
+const deployment = ${JSON.stringify(deploymentId)};
 export default {
   async fetch(request, env, ctx) {
-    const response = await ${options.durableCache ? "withCacheRequest(env.REBASK_CACHE, promise => ctx.waitUntil(promise), () => app.fetch(request))" : "app.fetch(request)"};
-    const headers = new Headers(response.headers);
-    // The immutable shell is reused internally; its resumed response is per-request.
-    headers.set("cache-control", "private, no-store");
-    // Automatic compression can hold the small shell until the resume finishes.
-    // Only resumed HTML is sent uncompressed; normal assets/static HTML retain compression.
-    const streamingPpr = headers.get("x-rebask-prerender") === "1";
-    if (streamingPpr) headers.set("content-encoding", "identity");
-    return new Response(response.body, {status:response.status, statusText:response.statusText, headers, ...(streamingPpr ? {encodeBody:"manual"} : {})});
+    if (options.images && new URL(request.url).pathname === "/_rebask/image")
+      return optimizeImage(request, env, options.images, deployment, caches.default, p => ctx.waitUntil(p));
+    const draft = options.draftMode && await verifyDraftCookie(request, env.REBASK_DRAFT_SECRET);
+    return withCacheRequest(env.REBASK_CACHE, p => ctx.waitUntil(p), async () => {
+      const eligible = !draft && pageCacheEligible(request, options.pageCache);
+      // Generation is checked before a lookup and again after rendering before a fill.
+      // Failed RPCs fail closed: no serving a potentially invalidated CDN entry.
+      let generation, key;
+      if (eligible) {
+        try {
+          generation = await edgeGeneration(env.REBASK_CACHE);
+          key = edgeKey(request, deployment, generation);
+          const hit = await caches.default.match(key);
+          if (hit) {
+            if (generation === await edgeGeneration(env.REBASK_CACHE)) return outgoing(hit, "HIT", draft);
+          }
+        } catch { key = undefined; }
+      }
+      const response = await app.fetch(request);
+      const ttl = key ? pageCacheTTL(response, pageFreshUntil(), options.pageCache.maxAge) : 0;
+      if (ttl > 0) {
+        try {
+          if (generation === await edgeGeneration(env.REBASK_CACHE)) {
+            const copy = response.clone();
+            copy.headers.set("cache-control", "public, max-age=" + ttl);
+            ctx.waitUntil(caches.default.put(key, copy).catch(() => {}));
+          }
+        } catch { /* Origin remains available if edge storage fails. */ }
+      }
+      return outgoing(response, ttl > 0 ? "MISS" : "BYPASS", draft);
+    }, !!draft);
   }
-};\n`,
+};
+function outgoing(response, cdn, draft) {
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "private, no-store");
+  headers.set("x-rebask-cdn", cdn);
+  if (draft) headers.set("x-rebask-draft", "1");
+  const streamingPpr = headers.get("x-rebask-prerender") === "1";
+  if (streamingPpr) headers.set("content-encoding", "identity");
+  return new Response(response.body, {status:response.status, statusText:response.statusText, headers, ...(streamingPpr ? {encodeBody:"manual"} : {})});
+}\n`,
         );
         // Preserve the checked-in Wrangler configuration, including JSONC comments.
         const { parse, printParseErrorCode } = await import("jsonc-parser");
@@ -258,6 +355,12 @@ export default {
             "rebask-cache-v1 is reserved; refusing to change an existing migration",
           );
         }
+        assert.ok(
+          !options.images ||
+            !config.images ||
+            config.images.binding === "REBASK_IMAGES",
+          "Images binding is reserved when adapter image optimization is enabled",
+        );
         const { $schema, ...workerConfig } = config;
         await writeFile(
           resolve(output, "server/wrangler.json"),
@@ -271,6 +374,9 @@ export default {
                 "process.env.NODE_ENV": JSON.stringify("production"),
               },
               main: "worker.mjs",
+              ...(options.images
+                ? { images: { binding: "REBASK_IMAGES" } }
+                : {}),
               assets: { directory: "../public", binding: "ASSETS" },
               ...(options.durableCache
                 ? {
@@ -307,3 +413,6 @@ export default {
     },
   };
 }
+
+/** Backwards-compatible name; prefer cloudflareAdapter for new integrations. */
+export const cloudflarePpr = cloudflareAdapter;

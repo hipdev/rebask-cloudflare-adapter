@@ -37,6 +37,7 @@ execFileSync(
   { cwd: fixture, stdio: "inherit" },
 );
 const invalidateNonce = randomUUID();
+const draftSecret = randomUUID() + randomUUID();
 await mkdir(resolve(fixture, "app/__qa-invalidate"), { recursive: true });
 await writeFile(
   resolve(fixture, "app/__qa-invalidate/route.ts"),
@@ -59,6 +60,10 @@ assert.equal(
   generatedConfig.define["process.env.NODE_ENV"],
   '"production"',
   "Runtime Flight must match production prerenders/client",
+);
+await writeFile(
+  resolve(fixture, ".output/server/.dev.vars"),
+  `REBASK_DRAFT_SECRET=${draftSecret}\n`,
 );
 const workers = [];
 async function start(directory, port) {
@@ -174,6 +179,7 @@ try {
       generated,
       cache: response.headers.get("x-rebask-cache"),
       partial: response.headers.get("x-rebask-prerender"),
+      cdn: response.headers.get("x-rebask-cdn"),
     };
   }
   let snapshot = await catalog();
@@ -193,6 +199,65 @@ try {
     snapshot.generated,
     "Runtime result was not reused",
   );
+  await setTimeout(200);
+  assert.equal(
+    (await catalog()).cdn,
+    "HIT",
+    "Complete public HTML never reached edge cache",
+  );
+  const { createDraftCookie } = await import("../dist/draft.js");
+  const cookie = (await createDraftCookie(draftSecret)).split(";")[0];
+  let previousDraft;
+  for (let i = 0; i < 2; i++) {
+    const r = await fetch(`${normal.origin}/catalog/item-a`, {
+      headers: { cookie },
+    });
+    assert.equal(r.headers.get("x-rebask-draft"), "1");
+    assert.equal(r.headers.get("x-rebask-cdn"), "BYPASS");
+    const value = (await r.text()).match(/data-generated="(\d+)"/)?.[1];
+    assert.ok(value);
+    assert.notEqual(value, snapshot.generated, "Draft reused public use-cache");
+    if (previousDraft)
+      assert.notEqual(
+        value,
+        previousDraft,
+        "Draft cached its own generated value",
+      );
+    previousDraft = value;
+    await setTimeout(30);
+  }
+  assert.equal(
+    (await catalog()).generated,
+    snapshot.generated,
+    "Draft overwrote public cache",
+  );
+  const tampered = await fetch(`${normal.origin}/catalog/item-a`, {
+    headers: { cookie: cookie + "x" },
+  });
+  assert.equal(tampered.headers.get("x-rebask-draft"), null);
+  assert.equal(tampered.headers.get("x-rebask-cdn"), "BYPASS");
+  await tampered.body.cancel();
+  const transformed = await fetch(
+    `${normal.origin}/_rebask/image?url=/images/sample.png&w=128&q=75`,
+    { headers: { accept: "image/webp" } },
+  );
+  assert.equal(transformed.status, 200, await transformed.clone().text());
+  assert.equal(transformed.headers.get("content-type"), "image/webp");
+  const imageBytes = Buffer.from(await transformed.arrayBuffer());
+  assert.equal(imageBytes.toString("ascii", 0, 4), "RIFF");
+  assert.equal(imageBytes.toString("ascii", 8, 12), "WEBP");
+  await setTimeout(100);
+  const transformedHit = await fetch(
+    `${normal.origin}/_rebask/image?url=/images/sample.png&w=128&q=75`,
+    { headers: { accept: "image/webp" } },
+  );
+  assert.equal(transformedHit.headers.get("x-rebask-image-cache"), "HIT");
+  await transformedHit.body.cancel();
+  const unauthorizedImage = await fetch(
+    `${normal.origin}/_rebask/image?url=https%3A%2F%2Fprivate.invalid%2Fa.png&w=128&q=75`,
+  );
+  assert.equal(unauthorizedImage.status, 400);
+  await unauthorizedImage.body.cancel();
   const previousLog = normal.log();
   const stopped = once(normal.child, "exit");
   process.kill(-normal.child.pid, "SIGTERM");

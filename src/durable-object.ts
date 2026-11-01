@@ -10,6 +10,9 @@ export class RebaskCache extends DurableObject<unknown> {
       ctx.storage.transactionSync(task),
     );
   }
+  generation() {
+    return this.shard.generation();
+  }
   lookup(key: string, seedTags: string[]) {
     return this.shard.lookup(key, seedTags);
   }

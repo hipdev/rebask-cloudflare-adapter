@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0
+
+- General `cloudflareAdapter()` entry point, with compatible `cloudflarePpr` alias.
+- Opt-in complete-public-HTML CDN cache, per data center, deployment/generation keys,
+  native remaining-freshness caps and acknowledged tag-invalidation coherence.
+- HMAC-signed adapter Draft Mode; bypasses page/data caches and native in-flight
+  function sharing without changing application authorization.
+- Rebask Image-compatible public local raster optimization using Cloudflare Images,
+  explicit source/parameter limits and cached format-specific derivatives.
+- Broader English/Spanish human/agent documentation and platform scope.
+
 ## 0.2.0
 
 - New unscoped package name: rebask-cloudflare-adapter (original scoped0.1.0 remains available).

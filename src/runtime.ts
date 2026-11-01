@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { CacheEntry } from "@rebask/core/cache";
 
 export interface CacheRpc {
+  generation(): Promise<number>;
   lookup(
     key: string,
     seedTags: string[],
@@ -22,6 +23,8 @@ export interface CacheNamespace {
 }
 interface CacheContext {
   namespace: CacheNamespace;
+  draft: boolean;
+  pageFreshUntil: number;
   waitUntil: (promise: Promise<unknown>) => void;
   epochs: Map<string, number>;
   leases: Map<string, string>;
@@ -39,9 +42,17 @@ export function withCacheRequest<T>(
   namespace: CacheNamespace,
   waitUntil: CacheContext["waitUntil"],
   task: () => T,
+  draft = false,
 ): T {
   return requests.run(
-    { namespace, waitUntil, epochs: new Map(), leases: new Map() },
+    {
+      namespace,
+      waitUntil,
+      draft,
+      pageFreshUntil: Infinity,
+      epochs: new Map(),
+      leases: new Map(),
+    },
     task,
   );
 }
@@ -59,4 +70,24 @@ export function runCacheTask(task: () => Promise<void>): void {
 export function keepCacheWrite<T>(promise: Promise<T>): Promise<T> {
   requests.getStore()?.waitUntil(promise);
   return promise;
+}
+
+/** Adapter Draft Mode; authorization to unpublished content remains app-owned. */
+export function isDraftMode(): boolean {
+  return requests.getStore()?.draft ?? false;
+}
+export function notePageEntry(entry: CacheEntry | null) {
+  const context = requests.getStore();
+  if (
+    context &&
+    entry?.type === 2 &&
+    !(entry as { postponed?: unknown }).postponed
+  )
+    context.pageFreshUntil = Math.min(
+      context.pageFreshUntil,
+      entry.timestamp + entry.revalidate * 1000,
+    );
+}
+export function pageFreshUntil() {
+  return requests.getStore()?.pageFreshUntil ?? 0;
 }

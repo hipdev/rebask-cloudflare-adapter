@@ -2,7 +2,7 @@
 
 This repository publishes rebask-cloudflare-adapter, a community MIT adapter for
 Rebask 0.2.0 on Cloudflare Workers. This is React Server Components + Vite, not Next.js.
-Read README.md and docs/architecture.md before changing cache/build/runtime code.
+Read README.md, docs/platform-features.md and docs/architecture.md before changing cache/build/runtime code.
 
 ## Start here
 
@@ -50,3 +50,9 @@ stream timing nor browser hydration. Run browser smoke QA when UI behavior chang
 Do not publish or create a release unless the task authorizes it. For authorized
 releases follow docs/releasing.md. Never print tokens or commit .npmrc credentials.
 Avoid changing a consuming application's backend or authorization to make tests pass.
+
+New platform services: src/edge.ts (complete public HTML only; generation fencing),
+src/draft.ts (signed cookie, never auth), src/images.ts (public ASSETS only, no remote
+fetch/queries/SVG). Keep Draft Mode bypass bridges for both core cache-function
+runtimes; storage-only bypass does not prevent native in-flight cache sharing.
+Never cache personalized PPR continuations. Preserve remaining-freshness caps.

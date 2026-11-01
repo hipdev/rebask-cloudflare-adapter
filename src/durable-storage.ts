@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
 import { BaseCacheStorage, type CacheEntry } from "@rebask/core/cache";
 import type { BuildArtifacts } from "./storage.js";
-import { cacheContext, keepCacheWrite } from "./runtime.js";
+import {
+  cacheContext,
+  keepCacheWrite,
+  isDraftMode,
+  notePageEntry,
+} from "./runtime.js";
 import { SHARDS } from "./shard.js";
 
 export class DurableCacheStorage extends BaseCacheStorage {
@@ -10,13 +15,11 @@ export class DurableCacheStorage extends BaseCacheStorage {
   }
   private address(key: string) {
     const [kind, deployment] = key.split(":");
-    if (
-      !(
-        kind === "dd" ||
-        (["ph", "pr", "ps", "pm", "du"].includes(kind!) &&
-          deployment === this.artifacts.deploymentId)
-      )
-    )
+    if (!(
+      kind === "dd" ||
+      (["ph", "pr", "ps", "pm", "du"].includes(kind!) &&
+        deployment === this.artifacts.deploymentId)
+    ))
       return null;
     const hash = createHash("sha256").update(key).digest("hex");
     const shard = `rebask-cache-v1-${hash[0]}`;
@@ -37,6 +40,7 @@ export class DurableCacheStorage extends BaseCacheStorage {
       : null;
   }
   protected async read(key: string): Promise<CacheEntry | null> {
+    if (isDraftMode()) return null;
     const address = this.address(key);
     if (!address) return null;
     const context = cacheContext(),
@@ -48,9 +52,12 @@ export class DurableCacheStorage extends BaseCacheStorage {
     // after an invalidation: an older concurrent computation could write later.
     if (!context.epochs.has(address.shard))
       context.epochs.set(address.shard, result.epoch);
-    return result.entry ?? (result.blocked ? null : seed);
+    const entry = result.entry ?? (result.blocked ? null : seed);
+    notePageEntry(entry);
+    return entry;
   }
   async set(key: string, entry: CacheEntry) {
+    if (isDraftMode()) return;
     const address = this.address(key);
     if (!address) return;
     const expected: Record<string, number[]> = {
@@ -92,6 +99,7 @@ export class DurableCacheStorage extends BaseCacheStorage {
     );
   }
   async tryClaim(key: string) {
+    if (isDraftMode()) return null;
     const address = this.address(key);
     if (!address) return null;
     const context = cacheContext(),

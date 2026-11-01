@@ -12,7 +12,12 @@ const base = pathToFileURL(
 ).href;
 const source = (
   await readFile(new URL("../dist/storage.js", import.meta.url), "utf8")
-).replace('"@rebask/core/cache"', JSON.stringify(base));
+)
+  .replace('"@rebask/core/cache"', JSON.stringify(base))
+  .replace(
+    '"./runtime.js"',
+    JSON.stringify(new URL("../dist/runtime.js", import.meta.url).href),
+  );
 const { BuildArtifactStorage } = await import(
   `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`
 );

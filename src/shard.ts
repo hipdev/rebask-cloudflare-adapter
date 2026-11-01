@@ -27,6 +27,9 @@ export class CacheShard {
       CREATE INDEX IF NOT EXISTS entries_expiry ON entries(expires);
       CREATE TABLE IF NOT EXISTS leases (key TEXT PRIMARY KEY, token TEXT NOT NULL, until INTEGER NOT NULL);`);
   }
+  generation() {
+    return this.epoch();
+  }
   private epoch(): number {
     return this.sql
       .exec<{ epoch: number }>("SELECT epoch FROM meta WHERE id=1")
@@ -140,7 +143,9 @@ export class CacheShard {
           .exec<{
             bytes: number;
             count: number;
-          }>("SELECT COALESCE(SUM(bytes),0) AS bytes,COUNT(*) AS count FROM entries WHERE payload IS NOT NULL")
+          }>(
+            "SELECT COALESCE(SUM(bytes),0) AS bytes,COUNT(*) AS count FROM entries WHERE payload IS NOT NULL",
+          )
           .one().bytes > 16_000_000 ||
         this.sql
           .exec<{
