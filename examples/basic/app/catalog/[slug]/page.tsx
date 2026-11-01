@@ -1,12 +1,6 @@
 import { Suspense } from "react";
 import { routeParams } from "@rebask/core/request";
-import { cacheLife, cacheTag } from "@rebask/core/cache";
-async function catalogItem(slug: string) {
-  "use cache";
-  cacheLife({ revalidate: 5, expire: 30 });
-  cacheTag("catalog");
-  return { slug, generated: Date.now() };
-}
+import { catalogItem } from "../../../lib/catalog";
 async function Item() {
   const { slug } = await routeParams<{ slug: string }>();
   const item = await catalogItem(slug);

@@ -59,6 +59,8 @@ durableCache identity and Workers background lifetime. Existing actual RSC trail
 and immutable-mode regressions remain active.
 
 The packed consumer runs native core0.2.0 without external patches in Workerd.
+A separate route combines globally shared public use-cache data with different
+uncached viewer markers, verifying function reuse without page-cache reuse.
 Its public catalog verifies pathname HTML promotion, shared use-cache reuse,
 persistence after restarting the Worker, native stale-while-revalidate regeneration
 and immediate fresh reads after acknowledged tag invalidation. An authenticated

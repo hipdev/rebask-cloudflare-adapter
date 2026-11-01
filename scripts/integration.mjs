@@ -142,6 +142,28 @@ try {
   const html = await fetch(`${normal.origin}/alice`);
   assert.match(html.headers.get("content-type"), /^text\/html/);
   await html.body?.cancel();
+  const publicValues = [];
+  for (const viewer of ["data-viewer-a", "data-viewer-b"]) {
+    const response = await fetch(`${normal.origin}/public-data/shared`, {
+      headers: { "x-example-viewer": viewer },
+    });
+    const html = await response.text();
+    assert.equal(response.status, 200);
+    assert.ok(html.includes(viewer));
+    assert.ok(
+      !html.includes(
+        viewer === "data-viewer-a" ? "data-viewer-b" : "data-viewer-a",
+      ),
+    );
+    publicValues.push(html.match(/data-generated="(\d+)"/)?.[1]);
+    await setTimeout(150);
+  }
+  assert.ok(publicValues[0]);
+  assert.equal(
+    publicValues[0],
+    publicValues[1],
+    "use-cache was not shared independently of uncached viewer content",
+  );
   async function catalog() {
     const response = await fetch(`${normal.origin}/catalog/item-a`);
     assert.equal(response.status, 200);
