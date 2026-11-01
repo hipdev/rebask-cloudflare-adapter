@@ -8,7 +8,7 @@
 3. Use npm login --auth-type=web for the authorized hipdev account. Complete npm's
    required passkey/2FA check. Do not put a token into source or action logs.
 4. Publish npm publish --access public. Complete any publish verification required
-   by npm. Verify npm view @hipdev/rebask-cloudflare@VERSION and install that exact
+   by npm. Verify npm view rebask-cloudflare-adapter@VERSION and install that exact
    version in a clean consumer before declaring it available.
 5. Tag vVERSION on the tested commit; create a GitHub release describing supported
    versions, tests and limits, linking the npm package. Confirm CI is green.

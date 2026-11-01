@@ -48,3 +48,25 @@ Wrangler development-renderer/production-client Flight mismatch (React504), now
 prevented by defining process.env.NODE_ENV as production in the generated Wrangler
 configuration. The integration guard asserts that setting. The source Vite dev
 server remains a development server; this definition applies to packaged output.
+
+
+## Durable release 0.2.0 evidence
+
+Fifteen unit tests cover SQL expiry/tombstones, generation fencing for same-millisecond
+invalidations and late writers, atomic lease ownership/expiry, payload bounds,
+key/type/deployment isolation, invalidation fanout/failure/retry, cross-deployment
+durableCache identity and Workers background lifetime. Existing actual RSC trailer
+and immutable-mode regressions remain active.
+
+The packed consumer runs native core0.2.0 without external patches in Workerd.
+Its public catalog verifies pathname HTML promotion, shared use-cache reuse,
+persistence after restarting the Worker, native stale-while-revalidate regeneration
+and immediate fresh reads after acknowledged tag invalidation. An authenticated
+invalidation route is injected only into the ignored QA copy; no public endpoint
+or credential ships in the example/package. Request-specific viewer markers remain
+isolated and forged cross-origin resume requests are still rejected.
+
+Controlled streaming measurements: Node24 shell5ms/completion1827ms, Node26
+shell4ms/completion1826ms with1800ms injected into actual React resume. These are
+local protocol tests, not production latency guarantees. Browser and consuming-app
+production evidence are recorded with the release/deployment after publication.
