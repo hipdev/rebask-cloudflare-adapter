@@ -25,10 +25,6 @@ if (process.env.QA_WORKER_NAME) {
   );
 }
 let config = await readFile(resolve(fixture, "vite.config.ts"), "utf8");
-config = config.replace(
-  "cloudflarePpr({",
-  "cloudflarePpr({ telemetry: {slowHeadersMs: 5000},",
-);
 config = config.replace("pageCache: {", 'pageCache: { mode: "workers-cache",');
 await writeFile(resolve(fixture, "vite.config.ts"), config);
 let catalog = await readFile(resolve(fixture, "lib/catalog.ts"), "utf8");

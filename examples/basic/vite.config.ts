@@ -11,6 +11,7 @@ export default defineConfig({
     rebask(),
     cloudflareAdapter({
       durableCache: true,
+      telemetry: { slowHeadersMs: 5000 },
       draftMode: true,
       pageCache: { paths: ["/catalog/item-a"], maxAge: 60 },
       images: { localPrefixes: ["/images/"] },
