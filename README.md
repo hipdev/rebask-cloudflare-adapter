@@ -19,7 +19,7 @@ adapter. [Español](README.es.md) · [Agent instructions](AGENTS.md) · [Archite
 - Existing RSC navigation/prefetch semantics and per-request dynamic content.
 - A single build with matching assets, prerender snapshots and deployment ID.
 - Private bundled snapshots; public assets contain only the client output.
-- A Node24 RSC trailer compatibility transform, including late request search reads.
+- A Node 24 RSC trailer compatibility transform, including late request search reads.
 
 This is **build-time PPR**, not durable ISR. Runtime cache writes, promotion claims
 and shared `use cache` storage are disabled. Tag invalidation throws explicitly.
@@ -28,7 +28,7 @@ See [limitations](docs/architecture.md#limits).
 
 ## Quick start
 
-Use Node24 or newer. In an existing Rebask app:
+Use Node 24 or newer. In an existing Rebask app:
 
 ```sh
 npm install --save-exact @rebask/core@0.2.0 react@19.2.0 react-dom@19.2.0
@@ -108,7 +108,7 @@ curl -N -H 'Accept-Encoding: identity' http://localhost:8787/alice
 
 Expect `x-rebask-cache: HIT`, `x-rebask-prerender: 1` and navigation **before**
 resumed hidden segments/scripts. A HIT header alone is not proof of early delivery.
-The packed-consumer test delays the actual React resume by1800ms and requires the
+The packed-consumer test delays the actual React resume by 1800ms and requires the
 visible shell to arrive before it completes, with gzip/br negotiation too:
 
 ```sh
@@ -118,7 +118,7 @@ npm run test:integration
 ```
 
 Tests also cover distinct request markers on the same URL, CSRF protection,
-HTML/RSC separation and private artifact404s. No Cloudflare account is needed for
+HTML/RSC separation and private artifact 404s. No Cloudflare account is needed for
 local Workerd tests. See [testing and troubleshooting](docs/testing.md).
 
 ## Contributing

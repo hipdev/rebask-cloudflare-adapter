@@ -4,12 +4,12 @@
 
 1. The Vite plugin creates a private external artifact module exporting null.
 2. During the native Rebask build/prerender, createCacheHandler uses filesystem
-   storage. The pinned Node24 trailer transform captures each request's mutable
+   storage. The pinned Node 24 trailer transform captures each request's mutable
    state before stream callbacks can lose AsyncLocalStorage context.
 3. The manifest-loader transform reads the bundled manifest when artifacts exist,
    otherwise falls back to Rebask's normal Node filesystem path.
 4. After Rebask finishes, the plugin reads its deployment ID, manifest and scoped
-   type1(RSC)/type2(HTML) cache entries. Tagged entries are rejected. It replaces
+   type 1 (RSC)/type 2 (HTML) cache entries. Tagged entries are rejected. It replaces
    the external artifact module with those immutable snapshots.
 5. Only dist/client goes into .output/public. The Worker imports dist/rsc/index.js;
    Wrangler bundles the server and private snapshots together. Generated JSON
@@ -32,7 +32,7 @@ HTML bytes; assets and complete static HTML keep automatic compression.
 
 ## Limits
 
-- Version0.1.0 supports core0.2.0/Vite8.3.5 and the standard dist layout only.
+- Version 0.1.0 supports core 0.2.0/Vite 8.3.5 and the standard dist layout only.
 - Immutable snapshots are refreshed by deployment; their native expiry metadata
   still applies. Runtime promotion, durable ISR, tag invalidation, use-cache data
   persistence and distributed cache coordination are not implemented.
@@ -51,7 +51,7 @@ HTML bytes; assets and complete static HTML keep automatic compression.
 
 ## References
 
-- [Rebask](https://www.rebask.com/) and its published @rebask/core0.2.0 source.
+- [Rebask](https://www.rebask.com/) and its published @rebask/core 0.2.0 source.
 - [Workers response encoding](https://developers.cloudflare.com/workers/runtime-apis/response/).
 - [Workers best practices](https://developers.cloudflare.com/workers/best-practices/workers-best-practices/).
 - [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/).

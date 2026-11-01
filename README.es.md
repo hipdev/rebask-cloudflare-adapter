@@ -4,7 +4,7 @@ Adaptador comunitario de **hipdev**, con licencia MIT. Publica el shell generado
 build y transmite después la continuación dinámica de React usando el runtime PPR
 nativo de Rebask. No es un adaptador oficial de Rebask ni de Cloudflare.
 
-**Experimental y con versiones exactas:** Rebask0.2.0, Vite8.3.5, Node24 o superior.
+**Experimental y con versiones exactas:** Rebask 0.2.0, Vite 8.3.5, Node 24 o superior.
 [Guía completa y configuración](README.md) · [Para agentes](AGENTS.md).
 
 ## Instalación
@@ -38,7 +38,7 @@ Empaqueta en privado el manifiesto y los snapshots HTML/RSC del mismo build, jun
 con su identificador de despliegue. Rebask encuentra el shell y reanuda React por
 petición. La navegación puede aparecer antes de que termine el contenido dinámico,
 si tu aplicación coloca las lecturas de sesión/request bajo Suspense local.
-También incluye la corrección del trailer RSC necesaria para Node24.
+También incluye la corrección del trailer RSC necesaria para Node 24.
 
 ## Límites importantes
 
@@ -49,7 +49,7 @@ También incluye la corrección del trailer RSC necesaria para Node24.
 - El HTML reanudado viaja sin compresión para que Workerd no retenga el shell. Los
   assets y HTML estático completo conservan la compresión normal.
 - No garantiza que desaparezcan todos los loaders locales ni un CLS igual a cero.
-- Solo soporta el layout estándar de salida de Rebask0.2.0 y configuración JSONC
+- Solo soporta el layout estándar de salida de Rebask 0.2.0 y configuración JSONC
   simple; los entornos Wrangler con nombre aún no están soportados.
 
 ## Deploy automático y verificación
@@ -60,5 +60,5 @@ raíz el de la aplicación. Cada push vuelve a generar y desplegar los snapshots
 
 `npm test` comprueba almacenamiento y compatibilidad. `npm run test:integration`
 instala el tarball en el ejemplo, construye con core sin parches externos y prueba
-Workerd. Retrasa React1800ms y verifica que la navegación llegue primero. Además
+Workerd. Retrasa React 1800ms y verifica que la navegación llegue primero. Además
 comprueba aislamiento entre peticiones, CSRF y tipos HTML/RSC. Ver [pruebas](docs/testing.md).

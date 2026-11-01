@@ -1,12 +1,12 @@
 # Instructions for coding agents
 
 This repository publishes @hipdev/rebask-cloudflare, a community MIT adapter for
-Rebask0.2.0 on Cloudflare Workers. This is React Server Components + Vite, not Next.js.
+Rebask 0.2.0 on Cloudflare Workers. This is React Server Components + Vite, not Next.js.
 Read README.md and docs/architecture.md before changing cache/build/runtime code.
 
 ## Start here
 
-- npm ci (Node24+); npm test; npm run typecheck; npm run test:integration.
+- npm ci (Node 24+); npm test; npm run typecheck; npm run test:integration.
 - src/plugin.ts: Vite manifest bridge, private artifact packaging, Worker generation.
 - src/cache.ts: paired Rebask config storage factory; virtual module requires plugin.
 - src/storage.ts: immutable build-only cache storage.
@@ -28,7 +28,7 @@ Read README.md and docs/architecture.md before changing cache/build/runtime code
    Manual identity encoding on resumed HTML prevents Workerd compression buffering.
 5. Pin supported core/Vite versions; fail on unknown internal formats. An upgrade
    requires tests against actual upstream source plus a fresh packed-consumer build
-   on Node24, not just mocked unit tests. Keep trailer state request-local and late
+   on Node 24, not just mocked unit tests. Keep trailer state request-local and late
    reads intact; never replace missing context with an empty object.
 6. Keep output directories paired (.output, dist, .cache/cloudflare). Generated
    files are ignored. No credentials, real account IDs, private app fixtures or
@@ -39,7 +39,7 @@ Read README.md and docs/architecture.md before changing cache/build/runtime code
 Every runtime/build change needs npm test, npm run typecheck and
 npm run test:integration. The integration test modifies only a copied QA build to
 inject delay; never expose a public test-delay control. Review npm pack --dry-run
-and inspect the archive. CI tests Node24 and26 without Cloudflare credentials.
+and inspect the archive. CI tests Node 24 and26 without Cloudflare credentials.
 Document limitations and measured evidence; a cache HIT alone proves neither
 stream timing nor browser hydration. Run browser smoke QA when UI behavior changes.
 

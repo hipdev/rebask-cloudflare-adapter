@@ -1,6 +1,6 @@
 # Testing and troubleshooting
 
-Run npm ci, npm test, npm run typecheck and npm run test:integration on Node24+.
+Run npm ci, npm test, npm run typecheck and npm run test:integration on Node 24+.
 The unit tests use the actual pinned Rebask base storage and trailer source. The
 integration runner builds an npm tarball, installs it into a clean example, runs
 Vite against unpatched core, then starts real local Workerd processes. No account
@@ -8,7 +8,7 @@ or deployment token is needed. Ports8788 and8789 must be free.
 
 Acceptance checks: initial visible navigation; native HIT/prerender headers;
 request-specific viewer markers isolated on the same URL; correct HTML/RSC MIME;
-private artifact404s; cross-origin forged resume403; delayed actual React resume
+private artifact 404s; cross-origin forged resume 403; delayed actual React resume
 with the shell delivered before the1800ms continuation. The delay is injected only
 into a copied .artifacts output. The deployable example is not modified.
 
@@ -32,5 +32,5 @@ one logical shell. A full response or HIT alone does not prove early shell deliv
 - **Permission/CSRF errors:** fix the consuming app's exact origin configuration;
   never disable authorization or action CSRF checks to make deployment pass.
 
-CI runs the same clean tarball flow on Node24 and26. Local timings are controlled
+CI runs the same clean tarball flow on Node 24 and26. Local timings are controlled
 streaming evidence, not production latency guarantees or a universal zero-CLS claim.

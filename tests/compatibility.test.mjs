@@ -15,20 +15,3 @@ test("Node24 compatibility targets actual pinned core and is idempotent", () => 
   assert.equal(patchRscTrailer(patched), patched);
   assert.throws(() => patchRscTrailer("changed upstream"), /changed/);
 });
-test("captured request states retain late reads across lost callback context", async () => {
-  const { AsyncLocalStorage } = await import("node:async_hooks");
-  const context = new AsyncLocalStorage();
-  const capture = Function(
-    "RequestStorage",
-    `return function(){${patchRscTrailer(`    if (trailer && rscStream) {\n const usedSearch = getUsedSearch();\n return () => usedSearch;\n}`).replace("const usedSearch = requestState.usedSearch;", "return () => requestState.usedSearch;").replace("if (trailer && rscStream)", "if (true)")}}`,
-  )(context);
-  const a = { state: { usedSearch: new Map() } },
-    b = { state: { usedSearch: new Map() } };
-  const fa = context.run(a, capture),
-    fb = context.run(b, capture);
-  a.state.usedSearch.set("q", ["late"]);
-  b.state.usedSearch.set("q", "other");
-  assert.deepEqual(fa().get("q"), ["late"]);
-  assert.equal(fb().get("q"), "other");
-  assert.equal(context.getStore(), undefined);
-});

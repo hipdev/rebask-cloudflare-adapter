@@ -37,7 +37,8 @@
     "AGENTS.md",
     "llms.txt",
     "CHANGELOG.md",
-    "README.es.md"
+    "README.es.md",
+    "CONTRIBUTING.md"
   ],
   "sideEffects": false,
   "keywords": [

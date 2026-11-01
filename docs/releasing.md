@@ -2,8 +2,8 @@
 
 1. Update package.json and example dependency versions plus CHANGELOG.md. Commit the
    matching package-lock.json. Do not overwrite an already published version.
-2. On Node24 run npm ci, npm test, npm run typecheck, npm run test:integration.
-   Verify GitHub CI on Node24/26 and review npm pack --dry-run. Inspect the archive:
+2. On Node 24 run npm ci, npm test, npm run typecheck, npm run test:integration.
+   Verify GitHub CI on Node 24/26 and review npm pack --dry-run. Inspect the archive:
    only dist, public docs, README, license and package metadata should ship.
 3. Use npm login --auth-type=web for the authorized hipdev account. Complete npm's
    required passkey/2FA check. Do not put a token into source or action logs.
