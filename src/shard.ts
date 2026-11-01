@@ -30,6 +30,9 @@ export class CacheShard {
   generation() {
     return this.epoch();
   }
+  finishInvalidation() {
+    this.sql.exec("UPDATE meta SET epoch=epoch+1 WHERE id=1");
+  }
   private epoch(): number {
     return this.sql
       .exec<{ epoch: number }>("SELECT epoch FROM meta WHERE id=1")

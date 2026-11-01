@@ -75,10 +75,13 @@ production evidence are recorded with the release/deployment after publication.
 
 ## Platform release 0.3.0
 
-19 unit regressions include signed-cookie tamper/expiry/duplicate/secret checks,
+20 unit regressions include signed-cookie tamper/expiry/duplicate/secret checks,
 CDN representation/privacy/freshness limits and image source/parameter security.
 The packed real Workerd consumer also verifies public HTML MISS→HIT, two fresh
 Draft Mode responses without overwriting public data, invalid-cookie rejection,
 CDN invalidation, actual Images-binding PNG→WebP output and derivative HIT.
 The original delayed-resume, ISR, restart persistence and isolation checks remain.
 No production authorization or QA endpoint is shipped.
+
+A deferred real SQLite shard proves the CDN final barrier advances only after
+fanout completion, fencing fills created during a partial invalidation.

@@ -308,3 +308,47 @@ test("durableCache entries survive deployment IDs but scoped use-cache never cro
     ),
   );
 });
+
+test("CDN final barrier invalidates fills created during partial fanout", async () => {
+  const ns = namespace();
+  let release;
+  const pending = new Promise((resolve) => {
+    release = resolve;
+  });
+  let started;
+  const observed = new Promise((resolve) => {
+    started = resolve;
+  });
+  const slow = {
+    getByName(name) {
+      const target = ns.getByName(name);
+      return new Proxy(target, {
+        get(object, property) {
+          if (property === "invalidate" && name.endsWith("f"))
+            return async (tag) => {
+              started();
+              await pending;
+              object.invalidate(tag);
+            };
+          const value = object[property];
+          return typeof value === "function" ? value.bind(object) : value;
+        },
+      });
+    },
+  };
+  const cache = new DurableCacheStorage({
+    deploymentId: "a",
+    manifest: {},
+    entries: {},
+  });
+  const invalidating = request(slow, () => cache.revalidateTag("catalog"));
+  await observed;
+  // An edge fill can use this partial-fanout generation while shard f is still old.
+  const partial = ns.getByName("rebask-cache-v1-0").generation();
+  release();
+  await invalidating;
+  assert.ok(
+    ns.getByName("rebask-cache-v1-0").generation() > partial,
+    "Acknowledged invalidation must fence every fill created before fanout completion",
+  );
+});

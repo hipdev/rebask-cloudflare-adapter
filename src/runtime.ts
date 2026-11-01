@@ -3,6 +3,7 @@ import type { CacheEntry } from "@rebask/core/cache";
 
 export interface CacheRpc {
   generation(): Promise<number>;
+  finishInvalidation(): Promise<void>;
   lookup(
     key: string,
     seedTags: string[],

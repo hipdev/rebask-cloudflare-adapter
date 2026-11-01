@@ -13,6 +13,9 @@ export class RebaskCache extends DurableObject<unknown> {
   generation() {
     return this.shard.generation();
   }
+  finishInvalidation() {
+    this.shard.finishInvalidation();
+  }
   lookup(key: string, seedTags: string[]) {
     return this.shard.lookup(key, seedTags);
   }

@@ -95,6 +95,8 @@ export class DurableCacheStorage extends BaseCacheStorage {
             .getByName(`rebask-cache-v1-${i.toString(16)}`)
             .invalidate(tag),
         ),
+      ).then(() =>
+        context.namespace.getByName("rebask-cache-v1-0").finishInvalidation(),
       ),
     );
   }

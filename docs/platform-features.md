@@ -39,7 +39,9 @@ Cache writes are best-effort, retained with waitUntil. MISS is an eligible origi
 response; it does not promise that Cache API accepted the write.
 
 Keys include deployment ID, pathname and durable generation. Tag invalidation fans
-out to all16 shards; shard0's epoch fences CDN keys. Generation is checked before
+out to all16 shards; shard0's epoch fences CDN keys. After ALL shards acknowledge, a final shard0
+generation advance makes any HTML filled during a partially completed fanout
+unreachable. Failure to complete that barrier fails the invalidation operation. Generation is checked before
 lookup, after a hit, and before a fill. After acknowledged invalidation, new reads
 cannot reach an old CDN generation. Concurrent requests already in flight may still
 finish. Failed generation RPCs bypass CDN. Unrelated tags conservatively evict the
