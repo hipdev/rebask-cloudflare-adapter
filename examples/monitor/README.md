@@ -34,3 +34,13 @@ The monitor calls the app's private RPC and fetches two public pages each run;
 these are real billable service/Worker requests. It does not inspect private
 permissions/media/backend data and does not expose fault-injection controls. Keep
 nonce-based remote CI testing in its separate ignored standalone QA fixture.
+
+Keep `global_fetch_strictly_public`: public synthetic requests must reach the
+application's real Cloudflare front door, including when both Workers share an
+account/zone. Without it, Worker-to-Worker public fetch can fail with1042. Health
+RPC continues to use the private service binding. See [Cloudflare fetch](https://developers.cloudflare.com/workers/runtime-apis/fetch/).
+
+Synthetic fetch uses `redirect: "manual"`, supported by Workerd. A redirect is a
+non-200 health result instead of a cross-host follow. Keep the monitor's paths
+canonical. Standard Node-only mocks do not prove Workerd redirect-mode support;
+validate the deployed monitor before enabling scheduled alert delivery.

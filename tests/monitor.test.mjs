@@ -31,6 +31,7 @@ test("monitor exposes only aggregate health and never purges or forwards credent
   let calls = 0;
   globalThis.fetch = async (request, options) => {
     calls++;
+    assert.equal(options.redirect, "manual");
     assert.equal(options.headers.authorization, undefined);
     assert.equal(options.headers.cookie, undefined);
     return new Response("public HTML");

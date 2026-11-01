@@ -26,18 +26,24 @@ export default {
       !(await authorized(request, env.MONITOR_TOKEN))
     )
       return response({ error: "Not found" }, 404);
+    let stage = "health-rpc";
     try {
       const health = await env.APP.adapterHealth();
       if (!health || typeof health.alertActive !== "boolean")
         throw Error("Missing health RPC");
+      stage = "public-checks";
       const checks = [];
       for (const path of ["/en/terms", "/es/dashboard/explore"]) {
+        stage = "public-signal";
+        const signal = AbortSignal.timeout(8000);
         const start = performance.now();
+        stage = "public-fetch";
         const result = await fetch(new URL(path, env.APP_ORIGIN), {
           headers: { accept: "text/html" },
-          redirect: "error",
-          signal: AbortSignal.timeout(8000),
+          redirect: "manual",
+          signal,
         });
+        stage = "public-body";
         await result.arrayBuffer();
         checks.push({
           status: result.status,
@@ -60,9 +66,24 @@ export default {
         },
         ok ? 200 : 503,
       );
-    } catch {
+    } catch (error) {
+      const message = String(error?.message ?? "");
+      const failure = /1042/.test(message)
+        ? "worker-routing"
+        : /redirect/i.test(message)
+          ? "redirect"
+          : /cache/i.test(message)
+            ? "cache"
+            : /network|connection/i.test(message)
+              ? "network"
+              : "unavailable";
       return response(
-        { ok: false, error: "adapter-or-public-route-unavailable" },
+        {
+          ok: false,
+          error: "adapter-or-public-route-unavailable",
+          stage,
+          failure,
+        },
         503,
       );
     }

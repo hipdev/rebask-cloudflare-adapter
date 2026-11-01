@@ -103,3 +103,8 @@ uses GitHub Actions' short-lived repository token with issues:write. Test failur
 recovery dispatches use a separate clearly marked synthetic incident. These are
 optional operational resources outside the published npm runtime. Read the
 companion README for setup, billing and GitHub schedule/notification limitations.
+
+Issue monitoring samples current durable backlog state and two public paths;
+short incidents between polls can remain visible only in Workers Logs. Per-request
+error/slow-header events also remain in Logs unless a separate log destination is
+configured. The monitor is not a global per-route error-rate or real-time pager.
