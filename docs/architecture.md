@@ -1,60 +1,97 @@
-# Architecture and scope
+# Architecture and scope (0.2.0)
 
-## Build
+`rebask-cloudflare-adapter` is the new unscoped package name. The original
+`@hipdev/rebask-cloudflare@0.1.0` remains available with its original immutable behavior.
 
-1. The Vite plugin creates a private external artifact module exporting null.
-2. During the native Rebask build/prerender, createCacheHandler uses filesystem
-   storage. The pinned Node 24 trailer transform captures each request's mutable
-   state before stream callbacks can lose AsyncLocalStorage context.
-3. The manifest-loader transform reads the bundled manifest when artifacts exist,
-   otherwise falls back to Rebask's normal Node filesystem path.
-4. After Rebask finishes, the plugin reads its deployment ID, manifest and scoped
-   type 1 (RSC)/type 2 (HTML) cache entries. Tagged entries are rejected. It replaces
-   the external artifact module with those immutable snapshots.
-5. Only dist/client goes into .output/public. The Worker imports dist/rsc/index.js;
-   Wrangler bundles the server and private snapshots together. Generated JSON
-   config points to that Worker and ASSETS. It preserves top-level source options,
-   excludes the source-relative schema, and requires nodejs_compat.
-   It pins process.env.NODE_ENV to production so local Wrangler preview and
-   deployed rendering use the same Flight protocol as prerendered/client output.
+## One native build
 
-## Request
+The Vite plugin packages the current Rebask0.2.0 manifest, deployment ID and matching
+prerender snapshots privately. Only dist/client becomes public assets. It reuses
+native React PPR/resume and preserves HTML/RSC separation and action CSRF.
 
-Workers serves client assets normally. App requests reach the native Rebask handler.
-The cache handler matches the deployment ID and ph/pr/ps namespace, hashes the key,
-then returns a clone of a build artifact. Rebask uses its own manifest, postponed
-React state and stream orchestration to emit the shell and resume the dynamic tail.
-The continuation gets the real request. No alternate client/resume protocol exists.
+`cloudflarePpr()` keeps the immutable, build-only cache. Opt in to runtime persistence
+with `cloudflarePpr({ durableCache: true })`; the paired `createCacheHandler()` reads
+that choice from the generated artifact. The plugin exports RebaskCache, adds the
+reserved REBASK_CACHE binding and rebask-cache-v1 SQLite migration, and preserves
+other bindings/migrations. Conflicting reserved configuration fails explicitly.
+A tiny private runtime module is shared by Vite output and the Worker so both use
+one request AsyncLocalStorage. The output remains portable with its cache directory.
 
-App responses are private/no-store; Cloudflare's CDN is not a shared viewer cache.
-The immutable shell is reused inside the Worker. Resumed HTML uses
-content-encoding:identity and Workers encodeBody:manual, preventing automatic
-compression from buffering a small shell until resume completes. This sends more
-HTML bytes; assets and complete static HTML keep automatic compression.
+## Durable caching and ISR
 
-## Limits
+Sixteen independently named SQLite Durable Objects partition keys by SHA256's first
+hex digit. This avoids a single object coordinating every request. Each partition
+owns its entries, tag generations and regeneration leases, using synchronous SQL
+transactions with no external I/O inside them. Raw URL keys are hashed before RPC.
+The partition count/name format is a storage protocol; do not change it in place.
 
-- Version 0.1.0 supports core 0.2.0/Vite 8.3.5 and the standard dist layout only.
-- Immutable snapshots are refreshed by deployment; their native expiry metadata
-  still applies. Runtime promotion, durable ISR, tag invalidation, use-cache data
-  persistence and distributed cache coordination are not implemented.
-- The app must return Suspense before awaiting runtime APIs. The adapter cannot
-  create a static shell from an application that suspends above its layout.
-- Only wrangler.jsonc at the Vite root and top-level deployment settings are
-  supported. Named environments and path-bearing advanced binding configuration
-  need separate adapter work; nested relative paths are not rebased by this release.
-- This fetch-only adapter does not implement scheduled/queue/WebSocket handlers or
-  dependency injection of bindings into application code.
-- Deployable Worker size/startup limits depend on the application and your plan.
-  Run Wrangler dry-run and validate deployment; this package grants no platform quota.
-- Development uses normal Rebask/Vite. Workerd parity is exercised after building.
-- Auth, backend data, origin allowlists, secrets and media permissions belong to the
-  consumer. No credentials are required by the adapter itself.
+The adapter accepts only native key/type pairs: ph/HTML, pr+ps/RSC, pm/Markdown,
+du/use-cache and dd/durableCache. All but dd must match the current deployment ID.
+Durable dd keys retain Rebask's source/input-based cross-deployment identity.
+Runtime entries take precedence over bundled snapshots. Reads return independent
+values. Stale entries remain servable while native Rebask regenerates them; expired
+entries are never served. Only framework-eligible, shareable results belong here.
+Request-sensitive uncached continuations are not captured as shared page responses.
+
+A generation baseline is captured before a computation, on its cache read or
+regeneration claim. A later tag invalidation increments a durable generation.
+Writes whose tags changed after their baseline are rejected, even if their final
+timestamp is newer. The earliest baseline is retained for the whole request/task:
+a second concurrent read cannot authorize an earlier computation's stale write.
+A write without a preceding baseline is conservatively skipped.
+
+Revalidation fans out to all16 partitions and resolves only after all acknowledge;
+failure is reported and the operation can be retried. Reads after acknowledgment
+cannot use invalidated entries. Tagged build snapshots lack runtime generations,
+so after any recorded invalidation of a tag they are conservatively excluded,
+including across deployments; native runtime generation replaces them. Tombstones
+prevent deleted/expired/invalidated runtime entries from resurrecting older seeds.
+
+Native background refresh/promotion claims are atomic, expire after30 seconds and
+use random ownership tokens. Old writers and releases are fenced after expiration
+or replacement. Each background task gets its own request context. A pinned native
+Rebask scheduling bridge attaches it to Workers waitUntil; cache writes are also
+kept alive. No public fill/resume/invalidation endpoint is introduced.
+
+## Bounds and operations
+
+Per partition: payload at most1,000,000 UTF-8 bytes; at most512 live payloads and
+16,000,000 payload bytes; at most4096 entry/tombstone rows and10000 tag rows.
+Entries are evicted by oldest write to enforce payload budgets. Oversized/full
+payload writes are skipped; invalidation/delete capacity errors are explicit.
+Tags: at most64 per entry,256 characters each. TTL is capped to365 days. Expiration
+is checked on reads and lazy/alarm cleanup; tags persist to preserve invalidation.
+Applications with larger workloads should measure RPC latency, object placement,
+storage usage and capacity, and plan namespace/schema migrations. This is an early
+bounded implementation, not a claim of unlimited scale or automatic global locality.
+
+## Streaming and deployment
+
+App responses remain private/no-store; this implementation does not add public CDN
+page caching or expose viewer responses to Cache API. Assets retain normal caching.
+Resumed HTML uses identity/manual encoding to avoid compression buffering the shell.
+The generated config pins the production renderer, including Wrangler preview.
+Native Node24 RSC trailer compatibility remains included.
+
+Keep .output, dist and .cache/cloudflare together until Wrangler bundles the Worker.
+Durable mode provisions SQLite Durable Objects through Wrangler migrations and has
+Cloudflare storage/RPC costs. Immutable mode needs no storage binding. See
+[testing](testing.md) and the runnable example.
+
+## Remaining limits
+
+Core0.2.0/Vite8.3.5 and the standard build layout remain pinned. Named Wrangler
+environments and advanced relative binding paths are unsupported. There is no
+integrated Draft Mode, image optimization adapter, public CDN invalidation layer,
+queue/WebSocket handler or automatic private-data policy. Authorization, backend
+queries, media access and origin allowlists remain the application's responsibility.
+Never cache auth tokens, permissions, private media grants or viewer-specific data.
+Use local Suspense boundaries before runtime APIs to retain an initial static shell.
 
 ## References
 
-- [Rebask](https://www.rebask.com/) and its published @rebask/core 0.2.0 source.
-- [Workers response encoding](https://developers.cloudflare.com/workers/runtime-apis/response/).
-- [Workers best practices](https://developers.cloudflare.com/workers/best-practices/workers-best-practices/).
-- [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/).
-- [react-ppr-workers inspiration](https://github.com/threepointone/react-ppr-workers).
+- [SQLite Durable Object storage](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/)
+- [Storage coordination](https://developers.cloudflare.com/durable-objects/best-practices/access-durable-objects-storage/)
+- [Workers response encoding](https://developers.cloudflare.com/workers/runtime-apis/response/)
+- [Rebask](https://www.rebask.com/) and published core0.2.0 source
+- [react-ppr-workers inspiration](https://github.com/threepointone/react-ppr-workers)

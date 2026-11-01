@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { once } from "node:events";
 import { spawn, execFileSync } from "node:child_process";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
@@ -26,13 +28,23 @@ await cp(resolve(root, "examples/basic"), fixture, { recursive: true });
 const pkg = JSON.parse(
   await readFile(resolve(fixture, "package.json"), "utf8"),
 );
-pkg.dependencies["@hipdev/rebask-cloudflare"] =
+pkg.dependencies["rebask-cloudflare-adapter"] =
   `file:${resolve(artifacts, pack.filename)}`;
 await writeFile(resolve(fixture, "package.json"), JSON.stringify(pkg, null, 2));
 execFileSync(
   "npm",
   ["install", "--ignore-scripts", "--no-audit", "--no-fund"],
   { cwd: fixture, stdio: "inherit" },
+);
+const invalidateNonce = randomUUID();
+await mkdir(resolve(fixture, "app/__qa-invalidate"), { recursive: true });
+await writeFile(
+  resolve(fixture, "app/__qa-invalidate/route.ts"),
+  `import { revalidateTag } from "@rebask/core/cache";
+export async function POST(request: Request) {
+ if (request.headers.get("x-qa-key") !== ${JSON.stringify(invalidateNonce)}) return new Response(null,{status:403});
+ await revalidateTag("catalog"); return new Response(null,{status:204});
+}`,
 );
 execFileSync(
   process.execPath,
@@ -74,14 +86,14 @@ async function start(directory, port) {
     try {
       const r = await fetch(origin, { signal: AbortSignal.timeout(1000) });
       await r.body?.cancel();
-      if (r.ok) return { origin, log: () => log };
+      if (r.ok) return { origin, child, log: () => log };
     } catch {}
     await setTimeout(250);
   }
   throw Error(`Workerd startup failed: ${log}`);
 }
 try {
-  const normal = await start(fixture, 8788);
+  let normal = await start(fixture, 8788);
   for (const [slug, viewer] of [
     ["alice", "viewer-a"],
     ["alice", "viewer-b"],
@@ -130,6 +142,77 @@ try {
   const html = await fetch(`${normal.origin}/alice`);
   assert.match(html.headers.get("content-type"), /^text\/html/);
   await html.body?.cancel();
+  async function catalog() {
+    const response = await fetch(`${normal.origin}/catalog/item-a`);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    const generated = html.match(/data-generated="(\d+)"/)?.[1];
+    assert.ok(generated, "Missing catalog snapshot");
+    return {
+      generated,
+      cache: response.headers.get("x-rebask-cache"),
+      partial: response.headers.get("x-rebask-prerender"),
+    };
+  }
+  let snapshot = await catalog();
+  for (let i = 0; i < 20; i++) {
+    await setTimeout(100);
+    snapshot = await catalog();
+    if (snapshot.cache === "HIT" && snapshot.partial !== "1") break;
+  }
+  assert.equal(snapshot.cache, "HIT");
+  assert.notEqual(
+    snapshot.partial,
+    "1",
+    "Public dynamic path was not promoted to complete cached HTML",
+  );
+  assert.equal(
+    (await catalog()).generated,
+    snapshot.generated,
+    "Runtime result was not reused",
+  );
+  const previousLog = normal.log();
+  const stopped = once(normal.child, "exit");
+  process.kill(-normal.child.pid, "SIGTERM");
+  await stopped;
+  normal = await start(fixture, 8788);
+  assert.equal(
+    (await catalog()).generated,
+    snapshot.generated,
+    "Durable result did not survive Worker restart",
+  );
+  await setTimeout(5500);
+  await catalog(); // Serve stale and start native ISR in waitUntil.
+  let refreshed;
+  for (let i = 0; i < 30; i++) {
+    await setTimeout(100);
+    refreshed = await catalog();
+    if (refreshed.generated !== snapshot.generated) break;
+  }
+  assert.notEqual(
+    refreshed.generated,
+    snapshot.generated,
+    "Native ISR never refreshed the stale public entry",
+  );
+  const denied = await fetch(`${normal.origin}/__qa-invalidate`, {
+    method: "POST",
+  });
+  assert.equal(denied.status, 403);
+  const invalidated = await fetch(`${normal.origin}/__qa-invalidate`, {
+    method: "POST",
+    headers: { "x-qa-key": invalidateNonce },
+  });
+  assert.equal(invalidated.status, 204);
+  const afterInvalidation = await catalog();
+  assert.notEqual(
+    afterInvalidation.generated,
+    refreshed.generated,
+    "Tag invalidation did not force fresh data",
+  );
+  assert.doesNotMatch(previousLog, /\[ERROR\]|Uncaught|ENOENT/);
+  console.log(
+    "Durable public catalog passed: promotion, shared use-cache, Worker restart persistence, native ISR and authenticated test-only tag invalidation.",
+  );
   const delayed = resolve(artifacts, "delayed");
   await rm(delayed, { recursive: true, force: true });
   await mkdir(delayed, { recursive: true });

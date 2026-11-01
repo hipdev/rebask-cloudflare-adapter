@@ -3,6 +3,7 @@ import { BaseCacheStorage, type CacheEntry } from "@rebask/core/cache";
 
 export interface BuildArtifacts {
   deploymentId: string;
+  durableCache?: boolean;
   manifest: Record<string, unknown>;
   entries: Record<string, CacheEntry>;
 }

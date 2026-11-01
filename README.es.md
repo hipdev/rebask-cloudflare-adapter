@@ -11,15 +11,15 @@ nativo de Rebask. No es un adaptador oficial de Rebask ni de Cloudflare.
 
 ```sh
 npm install --save-exact @rebask/core@0.2.0 react@19.3.1 react-dom@19.3.1
-npm install -D --save-exact @hipdev/rebask-cloudflare@0.1.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
+npm install -D --save-exact rebask-cloudflare-adapter@0.2.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
 ```
 
 En la configuración de Vite, después de `rsc()`, `react()` y `rebask()`, añade
-`cloudflarePpr()` importado desde `@hipdev/rebask-cloudflare`. Usa el build nativo;
+`cloudflarePpr()` importado desde `rebask-cloudflare-adapter`. Usa el build nativo;
 no combines este adaptador con Nitro, Vercel u otro adaptador en el mismo build.
 
 En `rebask.config.ts` configura `cacheHandler: createCacheHandler()`, importando
-esa función desde `@hipdev/rebask-cloudflare/cache`. Copia el `wrangler.jsonc` de
+esa función desde `rebask-cloudflare-adapter/cache`. Copia el `wrangler.jsonc` de
 [examples/basic](examples/basic), cambia el nombre del Worker y ejecuta:
 
 ```sh
@@ -40,17 +40,22 @@ petición. La navegación puede aparecer antes de que termine el contenido diná
 si tu aplicación coloca las lecturas de sesión/request bajo Suspense local.
 También incluye la corrección del trailer RSC necesaria para Node 24.
 
-## Límites importantes
+## Caché durable e ISR
 
-- Es PPR generado en build. Los snapshots se renuevan con cada despliegue.
-- No implementa ISR durable, promoción dinámica ni caché compartida de `use cache`.
-- Las escrituras de caché en runtime se ignoran; invalidar tags falla explícitamente.
-- Las respuestas dinámicas son privadas/no-store. El adaptador no autoriza usuarios.
-- El HTML reanudado viaja sin compresión para que Workerd no retenga el shell. Los
-  assets y HTML estático completo conservan la compresión normal.
-- No garantiza que desaparezcan todos los loaders locales ni un CLS igual a cero.
-- Solo soporta el layout estándar de salida de Rebask 0.2.0 y configuración JSONC
-  simple; los entornos Wrangler con nombre aún no están soportados.
+Activa `cloudflarePpr({ durableCache: true })` para persistir resultados públicos
+cacheables en16 Durable Objects con SQLite. Incluye `use cache`, `durableCache`,
+promoción de shells por ruta, regeneración por tiempo e invalidación con
+`revalidateTag`. El plugin genera el binding y la migración; no necesitas tokens
+adicionales. Los bloqueos tienen vencimiento y propietario, y las generaciones
+impiden que un render anterior a la invalidación vuelva a guardar datos obsoletos.
+
+`cloudflarePpr()` sin opciones conserva el modo inmutable. El paquete anterior
+`@hipdev/rebask-cloudflare@0.1.0` sigue disponible. No combines ambos adaptadores.
+
+La caché durable tiene costes y presupuestos de tamaño/entradas. Las respuestas
+siguen siendo privadas/no-store; no agregamos caché CDN pública de páginas, Draft
+Mode ni optimización de imágenes. No guardes sesiones, permisos o contenido del
+visitante en funciones compartidas. [Arquitectura y límites](docs/architecture.md).
 
 ## Deploy automático y verificación
 

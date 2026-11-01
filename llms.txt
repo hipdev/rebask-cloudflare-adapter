@@ -1,15 +1,15 @@
-# @hipdev/rebask-cloudflare
+# rebask-cloudflare-adapter
 
 > Community MIT Cloudflare Workers adapter for native Rebask build-time PPR.
 > Experimental. Exact compatibility: @rebask/core0.2.0, Vite8.3.5, Node24+.
 
-- [Quick start](https://github.com/hipdev/rebask-cloudflare/blob/main/README.md)
-- [Spanish guide](https://github.com/hipdev/rebask-cloudflare/blob/main/README.es.md)
-- [Agent instructions](https://github.com/hipdev/rebask-cloudflare/blob/main/AGENTS.md)
-- [Architecture and limits](https://github.com/hipdev/rebask-cloudflare/blob/main/docs/architecture.md)
-- [Testing](https://github.com/hipdev/rebask-cloudflare/blob/main/docs/testing.md)
-- [Source](https://github.com/hipdev/rebask-cloudflare/tree/main/src)
+- [Quick start](https://github.com/hipdev/rebask-cloudflare-adapter/blob/main/README.md)
+- [Spanish guide](https://github.com/hipdev/rebask-cloudflare-adapter/blob/main/README.es.md)
+- [Agent instructions](https://github.com/hipdev/rebask-cloudflare-adapter/blob/main/AGENTS.md)
+- [Architecture and limits](https://github.com/hipdev/rebask-cloudflare-adapter/blob/main/docs/architecture.md)
+- [Testing](https://github.com/hipdev/rebask-cloudflare-adapter/blob/main/docs/testing.md)
+- [Source](https://github.com/hipdev/rebask-cloudflare-adapter/tree/main/src)
 
 Configure cloudflarePpr() after native Rebask plugins and createCacheHandler() in
 rebask.config.ts. Build once; deploy .output/server/wrangler.json. Never publish
-private snapshots as assets. Supports immutable build-time PPR, not durable ISR.
+private snapshots as assets. Use cloudflarePpr({ durableCache: true }) for bounded durable cache, native ISR and tag invalidation; default remains immutable. Read architecture before enabling shared runtime data.

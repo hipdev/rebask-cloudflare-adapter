@@ -1,7 +1,7 @@
 # Rebask PPR on Cloudflare Workers
 
-[![CI](https://github.com/hipdev/rebask-cloudflare/actions/workflows/ci.yml/badge.svg)](https://github.com/hipdev/rebask-cloudflare/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@hipdev/rebask-cloudflare)](https://www.npmjs.com/package/@hipdev/rebask-cloudflare)
+[![CI](https://github.com/hipdev/rebask-cloudflare-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/hipdev/rebask-cloudflare-adapter/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/rebask-cloudflare-adapter)](https://www.npmjs.com/package/rebask-cloudflare-adapter)
 
 A community adapter that brings **Rebask's native build-time Partial Prerendering**
 to Cloudflare Workers. Serve the prerendered page frame immediately, then stream
@@ -21,10 +21,15 @@ adapter. [Español](README.es.md) · [Agent instructions](AGENTS.md) · [Archite
 - Private bundled snapshots; public assets contain only the client output.
 - A Node 24 RSC trailer compatibility transform, including late request search reads.
 
-This is **build-time PPR**, not durable ISR. Runtime cache writes, promotion claims
-and shared `use cache` storage are disabled. Tag invalidation throws explicitly.
-Snapshots refresh on deployment; auth and permission checks stay in your app.
-See [limitations](docs/architecture.md#limits).
+Enable **durable runtime caching, native ISR and tag invalidation** with
+`cloudflarePpr({ durableCache: true })`. This adds sixteen SQLite Durable Objects
+and owner-fenced regeneration leases. Native `use cache`, `durableCache`, HTML/RSC
+promotion and time/tag-based refresh use that storage. The default `cloudflarePpr()`
+keeps build-only immutable storage. Neither mode authorizes users or makes private
+data safe to share. [Architecture, budgets and remaining limits](docs/architecture.md).
+
+The new package name is `rebask-cloudflare-adapter`; the original scoped0.1.0 package
+remains available. Do not install both adapters in the same build.
 
 ## Quick start
 
@@ -32,7 +37,7 @@ Use Node 24 or newer. In an existing Rebask app:
 
 ```sh
 npm install --save-exact @rebask/core@0.2.0 react@19.3.1 react-dom@19.3.1
-npm install -D --save-exact @hipdev/rebask-cloudflare@0.1.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
+npm install -D --save-exact rebask-cloudflare-adapter@0.2.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
 ```
 
 `vite.config.ts` (keep the native Rebask build; replace the deployment adapter):
@@ -42,10 +47,10 @@ import { defineConfig } from "vite";
 import rsc from "@vitejs/plugin-rsc";
 import react from "@vitejs/plugin-react";
 import { rebask } from "@rebask/core/vite";
-import { cloudflarePpr } from "@hipdev/rebask-cloudflare";
+import { cloudflarePpr } from "rebask-cloudflare-adapter";
 
 export default defineConfig({
-  plugins: [rsc(), react(), rebask(), cloudflarePpr()],
+  plugins: [rsc(), react(), rebask(), cloudflarePpr({ durableCache: true })],
 });
 ```
 
@@ -53,7 +58,7 @@ export default defineConfig({
 
 ```ts
 import type { RebaskConfig } from "@rebask/core";
-import { createCacheHandler } from "@hipdev/rebask-cloudflare/cache";
+import { createCacheHandler } from "rebask-cloudflare-adapter/cache";
 
 export default { cacheHandler: createCacheHandler() } satisfies RebaskConfig;
 ```
@@ -117,7 +122,8 @@ npm test
 npm run test:integration
 ```
 
-Tests also cover distinct request markers on the same URL, CSRF protection,
+Tests cover durable public-page promotion, restart persistence, native ISR, tag
+invalidation and race fencing. They also cover distinct request markers on the same URL, CSRF protection,
 HTML/RSC separation and private artifact 404s. No Cloudflare account is needed for
 local Workerd tests. See [testing and troubleshooting](docs/testing.md).
 

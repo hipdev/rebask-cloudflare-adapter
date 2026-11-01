@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0
+
+- New unscoped package name: rebask-cloudflare-adapter (original scoped0.1.0 remains available).
+- Opt-in16-shard SQLite Durable Objects cache, native ISR/promotion and use-cache/durableCache persistence.
+- Tag invalidation with generation fences, bounded tombstones and owner-fenced30s regeneration leases.
+- Workers waitUntil integration and portable shared request context.
+- Real Workerd public catalog tests: reuse, restart persistence, ISR, invalidation and viewer isolation.
+
 ## 0.1.0
 
 Initial community release for @rebask/core 0.2.0 and Vite 8.3.5.

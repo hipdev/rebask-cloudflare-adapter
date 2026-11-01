@@ -1,3 +1,3 @@
 import type { RebaskConfig } from "@rebask/core";
-import { createCacheHandler } from "@hipdev/rebask-cloudflare/cache";
+import { createCacheHandler } from "rebask-cloudflare-adapter/cache";
 export default { cacheHandler: createCacheHandler() } satisfies RebaskConfig;

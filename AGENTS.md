@@ -1,6 +1,6 @@
 # Instructions for coding agents
 
-This repository publishes @hipdev/rebask-cloudflare, a community MIT adapter for
+This repository publishes rebask-cloudflare-adapter, a community MIT adapter for
 Rebask 0.2.0 on Cloudflare Workers. This is React Server Components + Vite, not Next.js.
 Read README.md and docs/architecture.md before changing cache/build/runtime code.
 
@@ -10,6 +10,8 @@ Read README.md and docs/architecture.md before changing cache/build/runtime code
 - src/plugin.ts: Vite manifest bridge, private artifact packaging, Worker generation.
 - src/cache.ts: paired Rebask config storage factory; virtual module requires plugin.
 - src/storage.ts: immutable build-only cache storage.
+- src/durable-storage.ts, shard.ts, durable-object.ts: bounded durable cache and SQL coordination.
+- src/runtime.ts: per-request/task scopes and Workers background lifetime.
 - src/compatibility.ts: pinned RSC trailer request-state compatibility transform.
 - examples/basic: public, standalone consumer; no application-specific dependencies.
 - scripts/integration.mjs: packs/installs consumer, builds, tests real Workerd/resume.
@@ -19,9 +21,11 @@ Read README.md and docs/architecture.md before changing cache/build/runtime code
 1. One native Rebask build produces manifest, cache entries, assets and deployment ID.
    Never seed snapshots with another build's output. Do not substitute full SSR and
    call it PPR, or use hidden resumed navigation as initial-shell evidence.
-2. Only current-deployment ph/pr/ps HTML/RSC build artifacts may be read. Never
-   retain runtime renders, viewer data, auth or permissions globally. Keep cloned
-   reads, no-op writes/deletes, no promotion claims and explicit tag errors.
+2. Immutable mode reads build artifacts only. Durable mode may retain only native
+   framework-eligible public entries, with deployment/type validation, SQL generation
+   fences, cloned reads and bounded storage. Never retain runtime viewer data,
+   auth or permissions globally. Keep invalidation fanout, owner-fenced leases,
+   tombstones and Workers waitUntil. Do not change the16-shard identity in place.
 3. Public assets contain dist/client only. Manifest and cache files stay in the
    private Worker bundle. Do not add a public resume endpoint or weaken action CSRF.
 4. Reuse native React resume. Preserve Response streaming; no body buffering.
