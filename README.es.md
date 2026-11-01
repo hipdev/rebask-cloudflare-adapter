@@ -11,7 +11,7 @@ nativo de Rebask. No es un adaptador oficial de Rebask ni de Cloudflare.
 
 ```sh
 npm install --save-exact @rebask/core@0.2.0 react@19.3.1 react-dom@19.3.1
-npm install -D --save-exact rebask-cloudflare-adapter@0.4.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
+npm install -D --save-exact rebask-cloudflare-adapter@0.5.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
 ```
 
 En la configuración de Vite, después de `rsc()`, `react()` y `rebask()`, añade
@@ -93,3 +93,12 @@ Para comprobar que un HIT no ejecuta el Worker, observa Cf-Cache-Status:HIT y el
 mismo x-rebask-worker-execution del fill. Ese ID se regenera en toda ejecución;
 los bypass deben producir IDs nuevos. x-rebask-cdn:WORKERS-CACHE solo indica el modo.
 Consulta [configuración y garantías](docs/platform-features.md).
+
+
+## Operación (0.5.0)
+
+Workers Cache administrado incluye purgas persistentes con reintentos automáticos,
+recuperación tras reinicios, salud por RPC privado, métricas y alertas de fallo y
+recuperación. El CI remoto sobre main prueba caché, fallos de purga y PPR en
+Cloudflare real. Consulta [operación](docs/operations.md) para configuración y
+límites. Las alertas quedan en Logs; las notificaciones externas requieren un destino.

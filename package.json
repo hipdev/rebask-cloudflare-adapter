@@ -1,6 +1,6 @@
 {
   "name": "rebask-cloudflare-adapter",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Community Rebask adapter for Cloudflare Workers: SSR, RSC, PPR, durable ISR, CDN pages, signed Draft Mode and image optimization.",
   "type": "module",
   "license": "MIT",
@@ -53,6 +53,14 @@
     "./workers-cache": {
       "types": "./dist/workers-cache.d.ts",
       "import": "./dist/workers-cache.js"
+    },
+    "./purge-object": {
+      "types": "./dist/purge-object.d.ts",
+      "import": "./dist/purge-object.js"
+    },
+    "./telemetry": {
+      "types": "./dist/telemetry.d.ts",
+      "import": "./dist/telemetry.js"
     }
   },
   "files": [
@@ -82,7 +90,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "test": "npm run build && node --test tests/*.test.mjs",
     "test:integration": "node scripts/integration.mjs && node scripts/test-workers-cache-local.mjs",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "test:remote": "node scripts/remote-ci.mjs"
   },
   "dependencies": {
     "jsonc-parser": "3.3.1"

@@ -65,3 +65,11 @@ skip execution or that purge acceptance is an atomic global transaction. Every
 invocation must regenerate the diagnostic ID, including all bypass branches.
 Remote tests must run only in an explicitly prepared disposable QA deployment;
 never add test invalidation/delay endpoints to a consuming application's backend.
+
+
+## Operations (0.5.0)
+
+Managed Workers Cache includes a durable purge outbox with automatic retries,
+restart recovery, private health RPC, structured metrics and alert transitions.
+Trusted-main Cloudflare Builds exercises real remote cache, purge outage/recovery
+and PPR behavior. See [operations](docs/operations.md) for setup and limits.

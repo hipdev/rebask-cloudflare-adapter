@@ -13,7 +13,22 @@ await symlink(
   resolve(fixture, "node_modules"),
   "dir",
 );
+if (process.env.QA_WORKER_NAME) {
+  const source = resolve(fixture, "wrangler.jsonc");
+  const text = await readFile(source, "utf8");
+  await writeFile(
+    source,
+    text.replace(
+      '"rebask-ppr-example"',
+      JSON.stringify(process.env.QA_WORKER_NAME),
+    ),
+  );
+}
 let config = await readFile(resolve(fixture, "vite.config.ts"), "utf8");
+config = config.replace(
+  "cloudflarePpr({",
+  "cloudflarePpr({ telemetry: {slowHeadersMs: 5000},",
+);
 config = config.replace("pageCache: {", 'pageCache: { mode: "workers-cache",');
 await writeFile(resolve(fixture, "vite.config.ts"), config);
 let catalog = await readFile(resolve(fixture, "lib/catalog.ts"), "utf8");
@@ -45,6 +60,28 @@ worker = worker.replace(
   "const response = await app.fetch(request);",
   `const response = await app.fetch(request);
         if(request.headers.get("x-qa-late-fill")===${JSON.stringify(qaKey)})await new Promise(resolve=>setTimeout(resolve,1800));`,
+);
+worker = worker.replace(
+  'export { RebaskPurge } from "rebask-cloudflare-adapter/purge-object";',
+  `import { RebaskPurge as BasePurge } from "rebask-cloudflare-adapter/purge-object";
+export class RebaskPurge extends BasePurge {
+ async qaFailure(value) { await this.ctx.storage.put("qa-failure",value); }
+ async qaFailing() { return !!(await this.ctx.storage.get("qa-failure")); }
+}`,
+);
+worker = worker.replace(
+  "await purgeWorkersPages(this.ctx.cache);",
+  'if(await this.env.REBASK_PURGE.getByName("pages-v1").qaFailing())throw Error("QA simulated outage"); await purgeWorkersPages(this.ctx.cache);',
+);
+worker = worker.replace(
+  "async function handle(request, env, ctx) {",
+  `async function handle(request, env, ctx) {
+ if(new URL(request.url).pathname === "/__qa-control") {
+  if(request.headers.get("x-qa-key")!==${JSON.stringify(qaKey)})return new Response(null,{status:403});
+  const coordinator=env.REBASK_PURGE.getByName("pages-v1");
+  if(request.method==="POST") await coordinator.qaFailure((await request.text())==="fail");
+  return Response.json(await coordinator.health(),{headers:{"cache-control":"private, no-store"}});
+ }`,
 );
 await writeFile(workerFile, worker);
 const server = resolve(fixture, "dist/rsc/index.js");

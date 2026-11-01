@@ -91,7 +91,18 @@ if (key) {
       method: "POST",
       headers: { "x-qa-key": key },
     });
-    assert.equal(r.status, 204, await r.text());
+    if (r.status === 204) return;
+    assert.equal(r.status, 500, await r.text());
+    // A durably queued retry is explicit failure until the coordinator confirms it.
+    for (let i = 0; i < 100; i++) {
+      const status = await fetch(new URL("/__qa-control", origin), {
+        headers: { "x-qa-key": key },
+      });
+      assert.equal(status.status, 200);
+      if (!(await status.json()).pending) return;
+      await setTimeout(250);
+    }
+    throw Error("Queued purge was not confirmed");
   };
   const denied = await fetch(new URL("/__qa-invalidate", origin), {
     method: "POST",

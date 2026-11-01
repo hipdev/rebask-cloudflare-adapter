@@ -56,3 +56,16 @@ export function workersCacheHeaders(
   }
   return headers;
 }
+
+export interface PurgeCoordinator {
+  requestPurge(): Promise<{ confirmed: boolean; pending: boolean }>;
+}
+export async function persistPagePurge(
+  coordinator: PurgeCoordinator,
+): Promise<void> {
+  const result = await coordinator.requestPurge();
+  if (!result.confirmed)
+    throw new Error(
+      "Page purge is durably queued; automatic retries are scheduled",
+    );
+}

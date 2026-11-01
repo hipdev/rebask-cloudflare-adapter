@@ -20,3 +20,11 @@ private snapshots as assets. Use cloudflarePpr({ durableCache: true }) for bound
   Vary isolates cookies/auth/RSC. revalidateTag awaits native purge after DO barrier.
   Native HITs skip the handler; legacy Cache API HITs still execute it. Purge has
   provider propagation semantics; preserve the stronger legacy mode when required.
+
+
+## Operations (0.5.0)
+
+Managed Workers Cache includes a durable purge outbox with automatic retries,
+restart recovery, private health RPC, structured metrics and alert transitions.
+Trusted-main Cloudflare Builds exercises real remote cache, purge outage/recovery
+and PPR behavior. See [operations](docs/operations.md) for setup and limits.

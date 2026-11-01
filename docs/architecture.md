@@ -1,4 +1,4 @@
-# Architecture and scope (0.4.0)
+# Architecture and scope (0.5.0)
 
 `rebask-cloudflare-adapter` is the new unscoped package name. The original
 `@hipdev/rebask-cloudflare@0.1.0` remains available with its original immutable behavior.
@@ -103,3 +103,10 @@ Managed mode requires pre-execution Vary separation of auth, Draft Mode cookies 
 RSC/protocol variants. Its global purge has provider propagation semantics; the
 legacy per-hit generation gate remains available through cache-api mode. See
 platform-features.md for guarantees, failure/retry behavior and execution proof.
+
+
+## Operations (0.5.0)
+
+See [operations](operations.md) for the persistent purge outbox, migrations,
+private same-entrypoint RPC, telemetry, alert events and trusted-main remote CI.
+Never ship QA fault/control endpoints in a consuming application.

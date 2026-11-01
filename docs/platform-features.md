@@ -1,4 +1,4 @@
-# CDN pages, Draft Mode and images (0.4.0)
+# CDN pages, Draft Mode and images (0.5.0)
 
 This is a community **Rebask deployment adapter**, covering SSR, RSC, streaming PPR,
 public durable data/ISR, invalidation and optional platform services. It is not an
@@ -85,7 +85,7 @@ legacy Cache API eligibility rules.
 Cache-Tag. After durable tag fanout and the final generation barrier,
 `revalidateTag()` awaits `ctx.cache.purge({tags:[...]})` and checks success. Missing
 APIs, rejected purges or RPC failures are explicit errors, never acknowledged as
-success; callers must retry. Purging is conservatively page-wide. It is scoped to
+success; a durable alarm retries the pending purge automatically (see operations.md). Purging is conservatively page-wide. It is scoped to
 the current Worker's default entrypoint; no zone purge or account token is used.
 
 Managed invalidation uses Cloudflare's native global purge propagation semantics.
@@ -170,3 +170,10 @@ must retain their existing authenticated delivery paths.
 References: [Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/),
 [Images binding](https://developers.cloudflare.com/images/optimization/binding/),
 [Images pricing](https://developers.cloudflare.com/images/pricing/).
+
+
+## Operations (0.5.0)
+
+See [operations](operations.md) for the persistent purge outbox, migrations,
+private same-entrypoint RPC, telemetry, alert events and trusted-main remote CI.
+Never ship QA fault/control endpoints in a consuming application.

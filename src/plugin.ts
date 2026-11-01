@@ -7,6 +7,7 @@ import { createRequire } from "node:module";
 import { patchRscTrailer } from "./compatibility.js";
 
 import type { PageCacheOptions } from "./edge.js";
+import type { TelemetryOptions } from "./telemetry.js";
 import type { ImageOptions } from "./images.js";
 
 export interface CloudflareAdapterOptions {
@@ -14,6 +15,7 @@ export interface CloudflareAdapterOptions {
   pageCache?: PageCacheOptions;
   draftMode?: boolean;
   images?: ImageOptions;
+  telemetry?: TelemetryOptions;
 }
 
 const virtualArtifacts = "virtual:rebask-cloudflare/artifacts";
@@ -30,6 +32,12 @@ export function cloudflareAdapter(
     !options.pageCache?.mode ||
       ["cache-api", "workers-cache"].includes(options.pageCache.mode),
     "Unknown page cache mode",
+  );
+  assert.ok(
+    !options.telemetry ||
+      (Number.isFinite(options.telemetry.slowHeadersMs ?? 5000) &&
+        (options.telemetry.slowHeadersMs ?? 5000) >= 0),
+    "Telemetry slowHeadersMs must be a finite nonnegative number",
   );
   for (const path of options.pageCache?.paths ?? [])
     assert.ok(
@@ -262,17 +270,24 @@ export function cloudflareAdapter(
         });
         await writeFile(
           resolve(output, "server/worker.mjs"),
-          `import app from "../../dist/rsc/index.js";
+          `import { WorkerEntrypoint } from "cloudflare:workers";
+import app from "../../dist/rsc/index.js";
 import { withCacheRequest, pageFreshUntil } from "../../.cache/cloudflare/runtime.mjs";
 import { verifyDraftCookie } from "rebask-cloudflare-adapter/draft";
 import { pageCacheEligible, pageCacheTTL, edgeGeneration, edgeKey } from "rebask-cloudflare-adapter/edge";
 import { optimizeImage } from "rebask-cloudflare-adapter/images";
-import { workersCacheHeaders, purgeWorkersPages } from "rebask-cloudflare-adapter/workers-cache";
+import { observeRequest } from "rebask-cloudflare-adapter/telemetry";
+import { workersCacheHeaders, purgeWorkersPages, persistPagePurge } from "rebask-cloudflare-adapter/workers-cache";
 ${options.durableCache ? 'export { RebaskCache } from "rebask-cloudflare-adapter/durable-object";' : ""}
 const options = ${JSON.stringify(options)};
 const deployment = ${JSON.stringify(deploymentId)};
-export default {
-  async fetch(request, env, ctx) {
+export default class RebaskWorker extends WorkerEntrypoint {
+  fetch(request) { return observeRequest(request, options.telemetry, () => handle(request, this.env, this.ctx)); }
+  async purgePageCache() { await purgeWorkersPages(this.ctx.cache); }
+  async adapterHealth() { return this.env.REBASK_PURGE?.getByName("pages-v1").health(); }
+}
+${options.pageCache?.mode === "workers-cache" ? 'export { RebaskPurge } from "rebask-cloudflare-adapter/purge-object";' : ""}
+async function handle(request, env, ctx) {
     const managed = options.pageCache?.mode === "workers-cache";
     // Fresh on EVERY invocation, including internal Cache API HITs. A managed HIT
     // preserves the previous ID because the platform never calls this handler.
@@ -328,9 +343,8 @@ export default {
         } catch { /* Origin remains available if edge storage fails. */ }
       }
       return outgoing(response, ttl > 0 ? "MISS" : "BYPASS", draft);
-    }, !!draft, managed ? () => purgeWorkersPages(ctx.cache) : undefined);
-  }
-};
+    }, !!draft, managed ? () => persistPagePurge(env.REBASK_PURGE.getByName("pages-v1")) : undefined);
+}
 function outgoing(response, cdn, draft) {
   const headers = new Headers(response.headers);
   headers.set("cache-control", "private, no-store");
@@ -410,6 +424,33 @@ function streamingResponse(response, headers) {
             config.exports.default.cache.enabled,
           "Default entrypoint cache conflicts with managed page caching",
         );
+        if (managed) {
+          const binding = config.durable_objects?.bindings?.find(
+            (b: { name: string }) => b.name === "REBASK_PURGE",
+          );
+          assert.ok(
+            !binding ||
+              (binding.class_name === "RebaskPurge" && !binding.script_name),
+            "REBASK_PURGE is reserved",
+          );
+          const self = config.services?.find(
+            (b: { binding: string }) => b.binding === "REBASK_SELF",
+          );
+          assert.ok(
+            !self || (self.service === config.name && !self.entrypoint),
+            "REBASK_SELF is reserved for private purge RPC",
+          );
+          const migration = config.migrations?.find(
+            (m: { tag: string }) => m.tag === "rebask-purge-v1",
+          );
+          assert.ok(
+            !migration ||
+              (migration.new_sqlite_classes?.length === 1 &&
+                migration.new_sqlite_classes[0] === "RebaskPurge" &&
+                Object.keys(migration).length === 2),
+            "rebask-purge-v1 migration is reserved",
+          );
+        }
         const { $schema, ...workerConfig } = config;
         await writeFile(
           resolve(output, "server/wrangler.json"),
@@ -417,6 +458,24 @@ function streamingResponse(response, headers) {
             {
               ...workerConfig,
               cache: { enabled: managed, cross_version_cache: false },
+              ...(options.telemetry
+                ? {
+                    observability: {
+                      ...workerConfig.observability,
+                      enabled: true,
+                    },
+                  }
+                : {}),
+              ...(managed
+                ? {
+                    services: [
+                      ...(workerConfig.services ?? []).filter(
+                        (b: { binding: string }) => b.binding !== "REBASK_SELF",
+                      ),
+                      { binding: "REBASK_SELF", service: workerConfig.name },
+                    ],
+                  }
+                : {}),
               // This output was prerendered for production. Wrangler dev must not
               // switch the runtime Flight protocol to a development renderer.
               define: {
@@ -435,19 +494,39 @@ function streamingResponse(response, headers) {
                         ...(
                           workerConfig.durable_objects?.bindings ?? []
                         ).filter(
-                          (b: { name: string }) => b.name !== "REBASK_CACHE",
+                          (b: { name: string }) =>
+                            b.name !== "REBASK_CACHE" &&
+                            (!managed || b.name !== "REBASK_PURGE"),
                         ),
                         { name: "REBASK_CACHE", class_name: "RebaskCache" },
+                        ...(managed
+                          ? [
+                              {
+                                name: "REBASK_PURGE",
+                                class_name: "RebaskPurge",
+                              },
+                            ]
+                          : []),
                       ],
                     },
                     migrations: [
                       ...(workerConfig.migrations ?? []).filter(
-                        (m: { tag: string }) => m.tag !== "rebask-cache-v1",
+                        (m: { tag: string }) =>
+                          m.tag !== "rebask-cache-v1" &&
+                          (!managed || m.tag !== "rebask-purge-v1"),
                       ),
                       {
                         tag: "rebask-cache-v1",
                         new_sqlite_classes: ["RebaskCache"],
                       },
+                      ...(managed
+                        ? [
+                            {
+                              tag: "rebask-purge-v1",
+                              new_sqlite_classes: ["RebaskPurge"],
+                            },
+                          ]
+                        : []),
                     ],
                   }
                 : {}),

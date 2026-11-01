@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — 2026-11-01
+
+- Persist managed page purge intent with coalescing tickets, crash recovery and alarm-driven retries without application exhaustion.
+- Add private same-entrypoint purge/health RPC, durable backlog firing/resolved alerts and optional privacy-preserving request metrics.
+- Add trusted-main remote CI covering actual native HITs, authenticated bypass, invalidation, failed purges, redeployment recovery and PPR streaming.
+- Keep existing cache shards, generation fences, Draft Mode and private continuations. Log alerts need a configured notification destination for external delivery.
+
 ## 0.4.0
 
 - Opt-in `pageCache.mode: "workers-cache"` with native front-of-Worker tiered caching;

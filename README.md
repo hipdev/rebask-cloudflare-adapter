@@ -53,7 +53,7 @@ Use Node 24 or newer. In an existing Rebask app:
 
 ```sh
 npm install --save-exact @rebask/core@0.2.0 react@19.3.1 react-dom@19.3.1
-npm install -D --save-exact rebask-cloudflare-adapter@0.4.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
+npm install -D --save-exact rebask-cloudflare-adapter@0.5.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
 ```
 
 `vite.config.ts` (keep the native Rebask build; replace the deployment adapter):
@@ -153,3 +153,11 @@ Thanks to [Rebask](https://www.rebask.com/) for the native PPR/RSC runtime and t
 [threepointone/react-ppr-workers](https://github.com/threepointone/react-ppr-workers)
 for demonstrating the shell/continuation approach on Workers. This adapter uses
 Rebask's own resume path; it does not copy that experiment's runtime.
+
+
+## Operations (0.5.0)
+
+Managed Workers Cache includes a durable purge outbox with automatic retries,
+restart recovery, private health RPC, structured metrics and alert transitions.
+Trusted-main Cloudflare Builds exercises real remote cache, purge outage/recovery
+and PPR behavior. See [operations](docs/operations.md) for setup and limits.

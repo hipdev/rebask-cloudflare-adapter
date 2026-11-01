@@ -5,6 +5,7 @@
 2. On Node 24 run npm ci, npm test, npm run typecheck, npm run test:integration.
    Verify GitHub CI on Node 24/26 and review npm pack --dry-run. Inspect the archive:
    only dist, public docs, README, license and package metadata should ship.
+   Also verify the trusted-main remote Cloudflare Build succeeds; see operations.md.
 3. Use npm login --auth-type=web for the authorized hipdev account. Complete npm's
    required passkey/2FA check. Do not put a token into source or action logs.
 4. Publish npm publish --access public. Complete any publish verification required
