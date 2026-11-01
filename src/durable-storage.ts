@@ -95,9 +95,14 @@ export class DurableCacheStorage extends BaseCacheStorage {
             .getByName(`rebask-cache-v1-${i.toString(16)}`)
             .invalidate(tag),
         ),
-      ).then(() =>
-        context.namespace.getByName("rebask-cache-v1-0").finishInvalidation(),
-      ),
+      ).then(async () => {
+        await context.namespace
+          .getByName("rebask-cache-v1-0")
+          .finishInvalidation();
+        // A generation key cannot gate managed HITs: purge the platform cache too.
+        // Do not acknowledge until the provider accepts the purge; propagate failure.
+        await context.purgePages?.();
+      }),
     );
   }
   async tryClaim(key: string) {

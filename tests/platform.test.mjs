@@ -183,3 +183,75 @@ test("image binding receives only public asset bytes and caches transformed repr
   assert.equal(calls, 1);
   assert.equal(await second.text(), "transformed");
 });
+
+test("managed cache headers isolate auth/draft/protocol variants before execution", async () => {
+  const {
+    workersCacheHeaders,
+    PAGE_CACHE_VARY,
+    PAGE_CACHE_TAG,
+    purgeWorkersPages,
+  } = await import("../dist/workers-cache.js");
+  const response = new Response("public", {
+    headers: {
+      "content-type": "text/html",
+      "cache-control": "s-maxage=300",
+      "x-rebask-cache": "HIT",
+    },
+  });
+  const h = workersCacheHeaders(
+    response,
+    true,
+    Date.now() + 30_000,
+    20,
+    "origin-a",
+  );
+  assert.match(
+    h.get("cloudflare-cdn-cache-control"),
+    /^public, max-age=\d+, must-revalidate$/,
+  );
+  assert.equal(h.get("cache-control"), "private, no-store");
+  for (const name of [
+    "cookie",
+    "authorization",
+    "accept",
+    "x-rebask-tail",
+    "x-rebask-shell",
+    "x-rebask-tree",
+    "x-rebask-resume",
+    "host",
+  ])
+    assert.ok(PAGE_CACHE_VARY.split(", ").includes(name));
+  assert.equal(h.get("cache-tag"), PAGE_CACHE_TAG);
+  const bypass = workersCacheHeaders(
+    response,
+    false,
+    Date.now() + 30_000,
+    20,
+    "origin-b",
+  );
+  assert.equal(bypass.get("cloudflare-cdn-cache-control"), "no-store");
+  assert.equal(bypass.get("cache-tag"), null);
+  assert.notEqual(
+    h.get("x-rebask-worker-execution"),
+    bypass.get("x-rebask-worker-execution"),
+  );
+  let called = false;
+  await purgeWorkersPages({
+    purge: async (options) => {
+      called = true;
+      assert.deepEqual(options, { tags: [PAGE_CACHE_TAG] });
+      return { success: true, errors: [] };
+    },
+  });
+  assert.ok(called);
+  await assert.rejects(purgeWorkersPages(undefined), /unavailable/);
+  await assert.rejects(
+    purgeWorkersPages({
+      purge: async () => ({
+        success: false,
+        errors: [{ code: 1, message: "unavailable" }],
+      }),
+    }),
+    /failed/,
+  );
+});

@@ -11,7 +11,7 @@ nativo de Rebask. No es un adaptador oficial de Rebask ni de Cloudflare.
 
 ```sh
 npm install --save-exact @rebask/core@0.2.0 react@19.3.1 react-dom@19.3.1
-npm install -D --save-exact rebask-cloudflare-adapter@0.3.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
+npm install -D --save-exact rebask-cloudflare-adapter@0.4.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
 ```
 
 En la configuración de Vite, después de `rsc()`, `react()` y `rebask()`, añade
@@ -74,3 +74,22 @@ comprueba aislamiento entre peticiones, CSRF y tipos HTML/RSC. Ver [pruebas](doc
 la autorización de borradores del backend. Imágenes remotas/privadas, SVG y colas
 no están soportadas por estas nuevas opciones. La caché CDN es por centro de datos;
 no almacena continuaciones personalizadas ni elimina la ejecución del Worker.
+
+## Workers Cache administrado (0.4.0)
+
+Con `pageCache: { mode: "workers-cache", paths: ["/es/terms"], maxAge: 60 }`
+y `durableCache: true`, Cloudflare puede servir HTML público completo sin ejecutar
+el Worker en un HIT. Usa caché jerárquica nativa. El adaptador separa Cookie,
+Authorization y variantes RSC con Vary antes de que se ejecute el código; Draft
+Mode y respuestas PPR personalizadas continúan fuera de esa caché.
+
+`revalidateTag` espera la invalidación durable, su barrera final y la aceptación
+de una purga nativa de páginas. Los fallos se propagan y requieren reintento.
+La propagación global pertenece a Cloudflare; no equivale a una transacción
+linealizable entre todos los centros. `mode: "cache-api"` conserva la comprobación
+de generación por petición y es el valor por defecto compatible.
+
+Para comprobar que un HIT no ejecuta el Worker, observa Cf-Cache-Status:HIT y el
+mismo x-rebask-worker-execution del fill. Ese ID se regenera en toda ejecución;
+los bypass deben producir IDs nuevos. x-rebask-cdn:WORKERS-CACHE solo indica el modo.
+Consulta [configuración y garantías](docs/platform-features.md).

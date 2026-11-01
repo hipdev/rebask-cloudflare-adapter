@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0
+
+- Opt-in `pageCache.mode: "workers-cache"` with native front-of-Worker tiered caching;
+  fresh platform HITs skip Worker/Rebask/DO execution. Cache API remains the default.
+- Pre-execution Vary isolation for cookies, authorization, RSC/PPR protocol and host.
+  Signed/malformed Draft Mode cookies bypass managed pages without weakening PPR.
+- Native tag purge after durable fanout/final barrier; rejected/unavailable purge
+  APIs fail explicitly. Version isolation, remaining-freshness caps and no stale serving.
+- Per-invocation diagnostic IDs and a remote packed-consumer verifier for actual
+  no-execution HITs, purge, concurrent fills, signed Draft Mode and delayed PPR.
+
 ## 0.3.0
 
 - General `cloudflareAdapter()` entry point, with compatible `cloudflarePpr` alias.

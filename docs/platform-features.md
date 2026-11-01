@@ -1,4 +1,4 @@
-# CDN pages, Draft Mode and images (0.3.0)
+# CDN pages, Draft Mode and images (0.4.0)
 
 This is a community **Rebask deployment adapter**, covering SSR, RSC, streaming PPR,
 public durable data/ISR, invalidation and optional platform services. It is not an
@@ -8,7 +8,7 @@ official Rebask or Cloudflare integration. Core 0.2.0 and Vite 8.3.5 remain pinn
 import { cloudflareAdapter } from "rebask-cloudflare-adapter";
 cloudflareAdapter({
   durableCache: true,
-  pageCache: { paths: ["/en/terms", "/es/terms"], maxAge: 60 },
+  pageCache: { mode: "workers-cache", paths: ["/en/terms", "/es/terms"], maxAge: 60 },
   draftMode: true,
   images: { localPrefixes: ["/assets/"] },
 });
@@ -18,6 +18,8 @@ cloudflareAdapter({
 Rebask configuration. Options are opt-in; a bare adapter keeps immutable snapshots.
 
 ## CDN pages
+
+### Cache API mode (default, backwards compatible)
 
 Workers Cache API stores **complete public HTML only**, per Cloudflare data center.
 It is not Tiered Cache, cross-region prewarming, or a Vercel CDN implementation.
@@ -47,6 +49,67 @@ cannot reach an old CDN generation. Concurrent requests already in flight may st
 finish. Failed generation RPCs bypass CDN. Unrelated tags conservatively evict the
 whole page CDN generation; old entries expire naturally. No public purge API exists.
 Revalidation failure must be retried; it is never reported as successful.
+
+### Managed Workers Cache mode (0.4.0)
+
+Select `pageCache: { mode: "workers-cache", paths: [...], maxAge: 60 }`.
+The generated Wrangler config enables Workers Cache with cross-version reuse
+explicitly disabled. A new Worker version gets an independent cache. Conflicting
+cache/default-entrypoint configuration fails. Use Wrangler4.156.0 as tested.
+
+Cloudflare checks its managed lower/upper cache tiers **before invoking the Worker**.
+A fresh `Cf-Cache-Status: HIT` does not invoke the generated fetch handler, Rebask,
+or the Durable Object generation checks. On a miss, the Worker checks generation,
+reads/renders Rebask, caps freshness as above, and checks generation again before
+returning a cacheable complete public HTML response. This mode does not also store
+the page through Cache API. Function/data ISR and private PPR remain unchanged.
+
+The browser still receives `Cache-Control: private, no-store`. The edge-only
+`Cloudflare-CDN-Cache-Control` header grants a bounded TTL and `must-revalidate`;
+Cloudflare consumes that header. Stale-while-revalidate and stale-on-error are not
+used for managed page responses. Dynamic/API/image responses explicitly return an
+edge no-store directive, overriding inherited CDN-specific headers.
+
+**Bypass must work before code runs.** A public fill includes Vary on Cookie,
+Authorization, Accept, Accept-Encoding, Host and Rebask action/tree/shell/tail/resume
+headers (plus conditional validators). The anonymous variant therefore cannot
+satisfy a credentialed or protocol-variant request. Its request reaches the Worker
+and is returned no-store. This also covers signed AND malformed Draft Mode cookies;
+only a valid signed cookie enables the draft flag. Never remove that Vary merely
+to improve hit rate. Headers are compared literally, which can reduce sharing
+between different browser Accept/encoding values. Cloudflare owns GET/HEAD sharing
+and conditional/range HTTP handling; those platform behaviors differ from the
+legacy Cache API eligibility rules.
+
+**Invalidation:** all managed page variants share the reserved `rebask-pages-v1`
+Cache-Tag. After durable tag fanout and the final generation barrier,
+`revalidateTag()` awaits `ctx.cache.purge({tags:[...]})` and checks success. Missing
+APIs, rejected purges or RPC failures are explicit errors, never acknowledged as
+success; callers must retry. Purging is conservatively page-wide. It is scoped to
+the current Worker's default entrypoint; no zone purge or account token is used.
+
+Managed invalidation uses Cloudflare's native global purge propagation semantics.
+The returned result acknowledges acceptance, not a distributed transaction with
+every edge and every in-flight response. Already-running requests can finish.
+Generation checks fence origin computations that overlap an invalidation before
+the final check. Do not describe this as a linearizable global cache or claim the
+legacy per-hit DO generation gate still executes on a managed HIT. Applications
+requiring that stronger lookup gate should keep `mode: "cache-api"`.
+
+**Evidence:** `x-rebask-cdn: WORKERS-CACHE` identifies the strategy, not this
+request's hit status. Read the platform's `Cf-Cache-Status`. The generated handler
+creates `x-rebask-worker-execution` anew on EVERY fetch invocation, even when other
+internal caches hit. Repeated platform HITs preserve the fill's ID; cookie/auth/RSC
+bypasses produce different IDs. This is a public diagnostic, not a credential.
+Use traces/observability alongside it where available; a legacy x-rebask-cache:HIT
+or x-rebask-image-cache:HIT alone does not prove that the Worker was skipped.
+
+Image derivative caching remains Cache API-based in this release. It does not
+silently opt public image requests into the new managed page cache.
+
+References: [Workers Cache](https://developers.cloudflare.com/workers/cache/),
+[configuration and Vary](https://developers.cloudflare.com/workers/cache/configuration/),
+[purge semantics](https://developers.cloudflare.com/workers/cache/purge/).
 
 ## Adapter Draft Mode
 

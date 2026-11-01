@@ -26,6 +26,11 @@ export function cloudflareAdapter(
     !options.pageCache || options.durableCache,
     "CDN pages require durableCache for invalidation fencing",
   );
+  assert.ok(
+    !options.pageCache?.mode ||
+      ["cache-api", "workers-cache"].includes(options.pageCache.mode),
+    "Unknown page cache mode",
+  );
   for (const path of options.pageCache?.paths ?? [])
     assert.ok(
       /^\/(?!\/)[^?#%\\]*$/.test(path),
@@ -262,16 +267,42 @@ import { withCacheRequest, pageFreshUntil } from "../../.cache/cloudflare/runtim
 import { verifyDraftCookie } from "rebask-cloudflare-adapter/draft";
 import { pageCacheEligible, pageCacheTTL, edgeGeneration, edgeKey } from "rebask-cloudflare-adapter/edge";
 import { optimizeImage } from "rebask-cloudflare-adapter/images";
+import { workersCacheHeaders, purgeWorkersPages } from "rebask-cloudflare-adapter/workers-cache";
 ${options.durableCache ? 'export { RebaskCache } from "rebask-cloudflare-adapter/durable-object";' : ""}
 const options = ${JSON.stringify(options)};
 const deployment = ${JSON.stringify(deploymentId)};
 export default {
   async fetch(request, env, ctx) {
-    if (options.images && new URL(request.url).pathname === "/_rebask/image")
-      return optimizeImage(request, env, options.images, deployment, caches.default, p => ctx.waitUntil(p));
+    const managed = options.pageCache?.mode === "workers-cache";
+    // Fresh on EVERY invocation, including internal Cache API HITs. A managed HIT
+    // preserves the previous ID because the platform never calls this handler.
+    const execution = managed ? crypto.randomUUID() : undefined;
+    if (options.images && new URL(request.url).pathname === "/_rebask/image") {
+      const response = await optimizeImage(request, env, options.images, deployment, caches.default, p => ctx.waitUntil(p));
+      if (!managed) return response;
+      const headers = new Headers(response.headers);
+      headers.set("cloudflare-cdn-cache-control", "no-store");
+      headers.delete("cdn-cache-control");
+      headers.set("x-rebask-worker-execution", execution);
+      return new Response(response.body, {status:response.status, headers});
+    }
     const draft = options.draftMode && await verifyDraftCookie(request, env.REBASK_DRAFT_SECRET);
     return withCacheRequest(env.REBASK_CACHE, p => ctx.waitUntil(p), async () => {
       const eligible = !draft && pageCacheEligible(request, options.pageCache);
+      if (managed) {
+        let generation;
+        if (eligible && ctx.cache?.purge) {
+          try { generation = await edgeGeneration(env.REBASK_CACHE); } catch { /* Fail closed for fills. */ }
+        }
+        const response = await app.fetch(request);
+        let mayCache = false;
+        if (generation !== undefined) {
+          try { mayCache = generation === await edgeGeneration(env.REBASK_CACHE); } catch { /* Origin only. */ }
+        }
+        const headers = workersCacheHeaders(response, mayCache, pageFreshUntil(), options.pageCache.maxAge ?? 60, execution);
+        if (draft) headers.set("x-rebask-draft", "1");
+        return streamingResponse(response, headers);
+      }
       // Generation is checked before a lookup and again after rendering before a fill.
       // Failed RPCs fail closed: no serving a potentially invalidated CDN entry.
       let generation, key;
@@ -297,7 +328,7 @@ export default {
         } catch { /* Origin remains available if edge storage fails. */ }
       }
       return outgoing(response, ttl > 0 ? "MISS" : "BYPASS", draft);
-    }, !!draft);
+    }, !!draft, managed ? () => purgeWorkersPages(ctx.cache) : undefined);
   }
 };
 function outgoing(response, cdn, draft) {
@@ -305,6 +336,9 @@ function outgoing(response, cdn, draft) {
   headers.set("cache-control", "private, no-store");
   headers.set("x-rebask-cdn", cdn);
   if (draft) headers.set("x-rebask-draft", "1");
+  return streamingResponse(response, headers);
+}
+function streamingResponse(response, headers) {
   const streamingPpr = headers.get("x-rebask-prerender") === "1";
   if (streamingPpr) headers.set("content-encoding", "identity");
   return new Response(response.body, {status:response.status, statusText:response.statusText, headers, ...(streamingPpr ? {encodeBody:"manual"} : {})});
@@ -361,12 +395,28 @@ function outgoing(response, cdn, draft) {
             config.images.binding === "REBASK_IMAGES",
           "Images binding is reserved when adapter image optimization is enabled",
         );
+        const managed = options.pageCache?.mode === "workers-cache";
+        assert.ok(
+          !config.cache?.enabled || managed,
+          "Configure pageCache.mode=workers-cache instead of enabling an unmanaged response cache",
+        );
+        assert.ok(
+          !managed || !config.cache?.cross_version_cache,
+          "Cross-version Workers Cache is unsafe for deployment-bound Rebask artifacts",
+        );
+        assert.ok(
+          !managed ||
+            !config.exports?.default?.cache ||
+            config.exports.default.cache.enabled,
+          "Default entrypoint cache conflicts with managed page caching",
+        );
         const { $schema, ...workerConfig } = config;
         await writeFile(
           resolve(output, "server/wrangler.json"),
           JSON.stringify(
             {
               ...workerConfig,
+              cache: { enabled: managed, cross_version_cache: false },
               // This output was prerendered for production. Wrangler dev must not
               // switch the runtime Flight protocol to a development renderer.
               define: {

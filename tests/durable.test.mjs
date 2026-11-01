@@ -352,3 +352,42 @@ test("CDN final barrier invalidates fills created during partial fanout", async 
     "Acknowledged invalidation must fence every fill created before fanout completion",
   );
 });
+
+test("managed purge follows durable fanout/barrier and failure is never acknowledged", async () => {
+  const ns = namespace(),
+    pending = [];
+  const cache = new DurableCacheStorage({
+    deploymentId: "a",
+    manifest: {},
+    entries: {},
+  });
+  let called = false;
+  await withCacheRequest(
+    ns,
+    (p) => pending.push(p),
+    () => cache.revalidateTag("managed"),
+    false,
+    async () => {
+      called = true;
+      for (const shard of ns.shards.values())
+        assert.equal(shard.lookup("seed", ["managed"]).blocked, true);
+      assert.ok(ns.getByName("rebask-cache-v1-0").generation() >= 2);
+    },
+  );
+  await Promise.all(pending);
+  assert.ok(called);
+  const failed = [];
+  await assert.rejects(
+    withCacheRequest(
+      ns,
+      (p) => failed.push(p),
+      () => cache.revalidateTag("failed-managed"),
+      false,
+      async () => {
+        throw Error("platform purge unavailable");
+      },
+    ),
+    /purge unavailable/,
+  );
+  await Promise.allSettled(failed);
+});

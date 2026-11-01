@@ -25,6 +25,7 @@ export interface CacheNamespace {
 interface CacheContext {
   namespace: CacheNamespace;
   draft: boolean;
+  purgePages?: () => Promise<void>;
   pageFreshUntil: number;
   waitUntil: (promise: Promise<unknown>) => void;
   epochs: Map<string, number>;
@@ -44,12 +45,14 @@ export function withCacheRequest<T>(
   waitUntil: CacheContext["waitUntil"],
   task: () => T,
   draft = false,
+  purgePages?: () => Promise<void>,
 ): T {
   return requests.run(
     {
       namespace,
       waitUntil,
       draft,
+      purgePages,
       pageFreshUntil: Infinity,
       epochs: new Map(),
       leases: new Map(),

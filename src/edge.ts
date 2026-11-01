@@ -3,6 +3,8 @@ import type { CacheNamespace } from "./runtime.js";
 export interface PageCacheOptions {
   /** Exact paths. Only native, fresh, complete public HTML can be stored. */
   paths: string[];
+  /** cache-api preserves 0.3 semantics; workers-cache uses the managed front cache. */
+  mode?: "cache-api" | "workers-cache";
   /** Maximum edge lifetime in seconds, further capped by native entry freshness. */
   maxAge?: number;
 }
@@ -25,8 +27,9 @@ export function pageCacheEligible(
       "x-rebask-tree",
       "x-rebask-shell",
       "x-rebask-tail",
+      "x-rebask-resume",
     ].some((h) => request.headers.has(h)) &&
-    !request.headers.get("accept")?.includes("text/x-component")
+    !request.headers.get("accept")?.toLowerCase().includes("text/x-component")
   );
 }
 export function pageCacheTTL(

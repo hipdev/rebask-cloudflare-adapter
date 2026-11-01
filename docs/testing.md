@@ -4,7 +4,7 @@ Run npm ci, npm test, npm run typecheck and npm run test:integration on Node 24+
 The unit tests use the actual pinned Rebask base storage and trailer source. The
 integration runner builds an npm tarball, installs it into a clean example, runs
 Vite against unpatched core, then starts real local Workerd processes. No account
-or deployment token is needed. Ports8788 and8789 must be free.
+or deployment token is needed. Ports8788,8789 and8790 must be free.
 
 Acceptance checks: initial visible navigation; native HIT/prerender headers;
 request-specific viewer markers isolated on the same URL; correct HTML/RSC MIME;
@@ -85,3 +85,32 @@ No production authorization or QA endpoint is shipped.
 
 A deferred real SQLite shard proves the CDN final barrier advances only after
 fanout completion, fencing fills created during a partial invalidation.
+
+## Workers Cache release 0.4.0
+
+22 unit regressions include edge Vary/privacy/freshness, purge failure and ordering
+after durable fanout/barrier. test:integration retains the legacy packed consumer
+and builds a second managed consumer: generated cache/version config, signed Draft
+Mode/auth/RSC bypass, per-invocation IDs and native PPR are exercised in Workerd.
+Local emulation is not proof of a live managed no-execution HIT.
+
+For remote proof, run scripts/prepare-workers-cache-qa.mjs after integration. It
+creates only an ignored copy with ephemeral authenticated invalidation/delay
+controls,60s public catalog freshness and keys outside the tarball. Supply an
+explicit disposable account/Worker name in its generated Wrangler config, provision
+its generated draft.key as REBASK_DRAFT_SECRET and deploy that output. Never point
+this fixture at production UHH or ship its test controls in the public example.
+
+Run `node scripts/verify-workers-cache.mjs ORIGIN QA_KEY_FILE DRAFT_SECRET_FILE`.
+It checks native HITs preserve the per-execution ID, while credentialed/RSC bypasses
+regenerate it. It also verifies rejected unauthenticated purge, acknowledged tag
+purge/fresh data, a delayed fill rejected after concurrent invalidation, signed and
+tampered Draft cookies, viewer isolation and1800ms delayed native React resume.
+QA_EVIDENCE optionally writes sanitized results. Remove the disposable Worker and
+its local keys after acceptance; no account credentials are needed by package CI.
+
+Live Cloudflare packed-consumer verification on2026-11-01 passed. The repeated
+anonymous HIT retained its fill execution ID; Cookie/Authorization/RSC/tree requests
+were BYPASS with fresh IDs. Purge returned success and fresh data; concurrent old
+fills were BYPASS. Signed Draft Mode produced fresh uncached values. Delayed PPR
+shell162ms/completion2046ms with1800ms injected delay (one measurement, not an SLA).

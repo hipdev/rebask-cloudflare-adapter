@@ -1,4 +1,4 @@
-# Architecture and scope (0.3.0)
+# Architecture and scope (0.4.0)
 
 `rebask-cloudflare-adapter` is the new unscoped package name. The original
 `@hipdev/rebask-cloudflare@0.1.0` remains available with its original immutable behavior.
@@ -68,7 +68,9 @@ bounded implementation, not a claim of unlimited scale or automatic global local
 ## Streaming and deployment
 
 Browser app responses remain private/no-store. Opt-in exact public paths can store
-fresh complete HTML in Cache API behind a durable generation gate. PPR continuations
+fresh complete HTML in Cache API behind a durable generation gate, or opt into
+managed Workers Cache in front of the handler. Managed hits skip all Worker/DO
+execution; tag revalidation then also awaits a native platform purge. PPR continuations
 and viewer responses never enter that cache. Assets retain normal caching.
 Resumed HTML uses identity/manual encoding to avoid compression buffering the shell.
 The generated config pins the production renderer, including Wrangler preview.
@@ -96,3 +98,8 @@ Use local Suspense boundaries before runtime APIs to retain an initial static sh
 - [Workers response encoding](https://developers.cloudflare.com/workers/runtime-apis/response/)
 - [Rebask](https://www.rebask.com/) and published core0.2.0 source
 - [react-ppr-workers inspiration](https://github.com/threepointone/react-ppr-workers)
+
+Managed mode requires pre-execution Vary separation of auth, Draft Mode cookies and
+RSC/protocol variants. Its global purge has provider propagation semantics; the
+legacy per-hit generation gate remains available through cache-api mode. See
+platform-features.md for guarantees, failure/retry behavior and execution proof.

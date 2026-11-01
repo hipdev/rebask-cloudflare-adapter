@@ -56,3 +56,12 @@ src/draft.ts (signed cookie, never auth), src/images.ts (public ASSETS only, no 
 fetch/queries/SVG). Keep Draft Mode bypass bridges for both core cache-function
 runtimes; storage-only bypass does not prevent native in-flight cache sharing.
 Never cache personalized PPR continuations. Preserve remaining-freshness caps.
+
+Managed mode (src/workers-cache.ts): never infer bypass from code that only runs on
+a miss. Vary must separate Cookie/Authorization/Accept/protocol fields before
+lookup. Keep browser no-store, edge-only bounded TTL, must-revalidate, version
+isolation and explicit native purge success checks. Do not claim Cache API HITs
+skip execution or that purge acceptance is an atomic global transaction. Every
+invocation must regenerate the diagnostic ID, including all bypass branches.
+Remote tests must run only in an explicitly prepared disposable QA deployment;
+never add test invalidation/delay endpoints to a consuming application's backend.

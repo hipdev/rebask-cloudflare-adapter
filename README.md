@@ -31,12 +31,17 @@ data safe to share. [Architecture, budgets and remaining limits](docs/architectu
 The new package name is `rebask-cloudflare-adapter`; the original scoped0.1.0 package
 remains available. Do not install both adapters in the same build.
 
-## Platform features in 0.3.0
+## Platform features
 
-- Opt-in per-data-center CDN caching for fresh complete public HTML, fenced by tag invalidation.
+- Opt-in managed **Workers Cache**: native tiered HITs serve complete public HTML
+  without executing the Worker; tag purges and pre-execution auth/Draft/RSC bypass.
+- Backwards-compatible per-data-center CDN caching for fresh complete public HTML, fenced by tag invalidation.
 - Signed Draft Mode cookies and request-local bypass of page/function caches.
 - Cloudflare Images binding with a Rebask `<Image>`-compatible endpoint for public local raster assets.
 - Backwards-compatible `cloudflarePpr` alias.
+
+Enable managed caching with `pageCache: { mode: "workers-cache", paths: ["/en/terms"], maxAge: 60 }`
+alongside `durableCache: true`. The default page cache mode remains `cache-api`.
 
 These services are opt-in and have specific limits. Read [configuration, security,
 costs and scope](docs/platform-features.md) before enabling them. PPR continuations,
@@ -48,7 +53,7 @@ Use Node 24 or newer. In an existing Rebask app:
 
 ```sh
 npm install --save-exact @rebask/core@0.2.0 react@19.3.1 react-dom@19.3.1
-npm install -D --save-exact rebask-cloudflare-adapter@0.3.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
+npm install -D --save-exact rebask-cloudflare-adapter@0.4.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
 ```
 
 `vite.config.ts` (keep the native Rebask build; replace the deployment adapter):

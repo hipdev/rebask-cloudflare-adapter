@@ -15,3 +15,8 @@ rebask.config.ts. Build once; deploy .output/server/wrangler.json. Never publish
 private snapshots as assets. Use cloudflarePpr({ durableCache: true }) for bounded durable cache, native ISR and tag invalidation; default remains immutable. Read architecture before enabling shared runtime data.
 
 - [Platform services and security](docs/platform-features.md)
+
+- Managed Workers Cache is opt-in: pageCache.mode="workers-cache". Pre-execution
+  Vary isolates cookies/auth/RSC. revalidateTag awaits native purge after DO barrier.
+  Native HITs skip the handler; legacy Cache API HITs still execute it. Purge has
+  provider propagation semantics; preserve the stronger legacy mode when required.
