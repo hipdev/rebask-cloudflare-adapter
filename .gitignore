@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tgz
+.artifacts/
+.output/
+.cache/
+.wrangler/
+.env*
+!.env.example

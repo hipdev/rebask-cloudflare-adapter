@@ -1,0 +1,36 @@
+# Testing and troubleshooting
+
+Run npm ci, npm test, npm run typecheck and npm run test:integration on Node24+.
+The unit tests use the actual pinned Rebask base storage and trailer source. The
+integration runner builds an npm tarball, installs it into a clean example, runs
+Vite against unpatched core, then starts real local Workerd processes. No account
+or deployment token is needed. Ports8788 and8789 must be free.
+
+Acceptance checks: initial visible navigation; native HIT/prerender headers;
+request-specific viewer markers isolated on the same URL; correct HTML/RSC MIME;
+private artifact404s; cross-origin forged resume403; delayed actual React resume
+with the shell delivered before the1800ms continuation. The delay is injected only
+into a copied .artifacts output. The deployable example is not modified.
+
+For a consumer, inspect raw HTML before hidden Fizz segments and before scripts;
+then hard reload in a browser, verify hydration/console, mobile chrome and retained
+navigation state. Network fragmentation means one transport read is not necessarily
+one logical shell. A full response or HIT alone does not prove early shell delivery.
+
+- **Unknown manifest/trailer/version:** do not remove the assertions. Use the exact
+  supported versions or contribute a compatibility change with packed-consumer proof.
+- **Virtual artifact module unresolved:** use both cloudflarePpr() and the paired
+  createCacheHandler() config; do not import the cache factory in arbitrary Node scripts.
+- **No cached shell:** check Suspense boundaries above headers/routeParams/session
+  reads, that snapshots exist, and that all build directories came from one build.
+- **Shell waits for data:** check content-encoding and proxies for buffering; test
+  with gzip/br as a browser would. Keep identity/manual encoding for resumed HTML.
+- **Private content leaks:** stop publishing and inspect application SSR/cache
+  boundaries. The adapter never intentionally stores runtime viewer responses.
+- **Binding/config paths:** this release does not rebase advanced relative paths or
+  named environments. Keep configs simple and inspect generated Wrangler output.
+- **Permission/CSRF errors:** fix the consuming app's exact origin configuration;
+  never disable authorization or action CSRF checks to make deployment pass.
+
+CI runs the same clean tarball flow on Node24 and26. Local timings are controlled
+streaming evidence, not production latency guarantees or a universal zero-CLS claim.

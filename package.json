@@ -1,0 +1,82 @@
+{
+  "name": "@hipdev/rebask-cloudflare",
+  "version": "0.1.0",
+  "description": "Community Cloudflare Workers adapter for Rebask build-time Partial Prerendering (PPR).",
+  "type": "module",
+  "license": "MIT",
+  "author": "hipdev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hipdev/rebask-cloudflare.git"
+  },
+  "homepage": "https://github.com/hipdev/rebask-cloudflare#readme",
+  "bugs": {
+    "url": "https://github.com/hipdev/rebask-cloudflare/issues"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.js"
+    },
+    "./cache": {
+      "types": "./dist/cache.d.ts",
+      "import": "./dist/cache.js"
+    },
+    "./storage": {
+      "types": "./dist/storage.d.ts",
+      "import": "./dist/storage.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "AGENTS.md",
+    "llms.txt",
+    "CHANGELOG.md",
+    "README.es.md"
+  ],
+  "sideEffects": false,
+  "keywords": [
+    "rebask",
+    "cloudflare",
+    "workers",
+    "ppr",
+    "react",
+    "server-components",
+    "vite"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.build.json",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "test:integration": "node scripts/integration.mjs",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "jsonc-parser": "3.3.1"
+  },
+  "peerDependencies": {
+    "@rebask/core": "0.2.0",
+    "vite": "8.3.5"
+  },
+  "devDependencies": {
+    "@rebask/core": "0.2.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "@vitejs/plugin-rsc": "0.5.38",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "wrangler": "4.156.0"
+  }
+}
