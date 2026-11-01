@@ -192,6 +192,12 @@ export default {
           JSON.stringify(
             {
               ...workerConfig,
+              // This output was prerendered for production. Wrangler dev must not
+              // switch the runtime Flight protocol to a development renderer.
+              define: {
+                ...workerConfig.define,
+                "process.env.NODE_ENV": JSON.stringify("production"),
+              },
               main: "worker.mjs",
               assets: { directory: "../public", binding: "ASSETS" },
             },

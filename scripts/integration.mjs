@@ -40,6 +40,14 @@ execFileSync(
   { cwd: fixture, stdio: "inherit" },
 );
 execFileSync("npm", ["run", "typecheck"], { cwd: fixture, stdio: "inherit" });
+const generatedConfig = JSON.parse(
+  await readFile(resolve(fixture, ".output/server/wrangler.json"), "utf8"),
+);
+assert.equal(
+  generatedConfig.define["process.env.NODE_ENV"],
+  '"production"',
+  "Runtime Flight must match production prerenders/client",
+);
 const workers = [];
 async function start(directory, port) {
   const child = spawn(

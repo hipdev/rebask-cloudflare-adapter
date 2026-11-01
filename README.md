@@ -31,7 +31,7 @@ See [limitations](docs/architecture.md#limits).
 Use Node 24 or newer. In an existing Rebask app:
 
 ```sh
-npm install --save-exact @rebask/core@0.2.0 react@19.2.0 react-dom@19.2.0
+npm install --save-exact @rebask/core@0.2.0 react@19.3.1 react-dom@19.3.1
 npm install -D --save-exact @hipdev/rebask-cloudflare@0.1.0 vite@8.3.5 @vitejs/plugin-rsc@0.5.38 @vitejs/plugin-react@6.1.1 wrangler@4.156.0
 ```
 

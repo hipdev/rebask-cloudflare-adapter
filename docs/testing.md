@@ -34,3 +34,17 @@ one logical shell. A full response or HIT alone does not prove early shell deliv
 
 CI runs the same clean tarball flow on Node 24 and26. Local timings are controlled
 streaming evidence, not production latency guarantees or a universal zero-CLS claim.
+
+## Initial release evidence (2026-11-01)
+
+Six unit regressions passed, including the actual core RSC trailer function with
+request-context loss and concurrent late search reads. The clean tarball consumer
+passed on Node24.22.1 and Node26.5.0. A controlled Node24 run measured a3ms shell
+and1826ms completion with the1800ms React resume delay; these are local timings.
+
+Chrome smoke QA: /alice→/bob, hard reload and Back rendered the matching runtime
+content. The final build produced no console warnings/errors. This check caught a
+Wrangler development-renderer/production-client Flight mismatch (React504), now
+prevented by defining process.env.NODE_ENV as production in the generated Wrangler
+configuration. The integration guard asserts that setting. The source Vite dev
+server remains a development server; this definition applies to packaged output.

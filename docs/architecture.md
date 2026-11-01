@@ -15,6 +15,8 @@
    Wrangler bundles the server and private snapshots together. Generated JSON
    config points to that Worker and ASSETS. It preserves top-level source options,
    excludes the source-relative schema, and requires nodejs_compat.
+   It pins process.env.NODE_ENV to production so local Wrangler preview and
+   deployed rendering use the same Flight protocol as prerendered/client output.
 
 ## Request
 
