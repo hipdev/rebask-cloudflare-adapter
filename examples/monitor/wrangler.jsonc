@@ -1,0 +1,8 @@
+{
+  "name": "rebask-adapter-monitor",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  "services": [{ "binding": "APP", "service": "your-rebask-app" }],
+  "vars": { "APP_ORIGIN": "https://your-rebask-app.workers.dev" },
+}

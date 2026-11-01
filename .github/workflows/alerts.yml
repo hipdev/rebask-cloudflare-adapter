@@ -1,0 +1,40 @@
+name: Adapter alerts
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: "Synthetic delivery check (failure opens a test issue, recovery closes it)"
+        type: choice
+        options: [none, failure, recovery]
+        default: none
+permissions:
+  contents: read
+  checks: read
+  issues: write
+concurrency:
+  group: adapter-alerts
+  cancel-in-progress: false
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      ADAPTER_MONITOR_URL: ${{ secrets.ADAPTER_MONITOR_URL }}
+      ADAPTER_MONITOR_TOKEN: ${{ secrets.ADAPTER_MONITOR_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/monitor-alert.mjs
+        env:
+          ALERT_CATEGORY: production
+          ALERT_TEST_MODE: ${{ inputs.test_mode || 'none' }}
+      - name: Remote CI alert
+        if: inputs.test_mode == '' || inputs.test_mode == 'none'
+        run: node scripts/monitor-alert.mjs
+        env:
+          ALERT_CATEGORY: ci

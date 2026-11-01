@@ -90,3 +90,16 @@ Maintainer platform test on 2026-11-01 passed retry/restart/coalescing and
 firing/resolved state, real native purge, all bypass tests and delayed PPR
 (shell128ms, completion1930ms). This is evidence from one Cloudflare location,
 not a global propagation SLA or a load/cost benchmark.
+
+## GitHub Issues delivery companion
+
+The repository now includes [the read-only companion monitor](../examples/monitor/README.md)
+and `.github/workflows/alerts.yml`. It polls aggregate purge health and public
+synthetic checks, plus the latest trusted-main Cloudflare Build check, every15
+minutes and deduplicates failures into GitHub Issues that close on recovery.
+A monitor-only secret protects HTTP health; no account credential is given to
+GitHub and no GitHub credential is given to Cloudflare. Outbound issue delivery
+uses GitHub Actions' short-lived repository token with issues:write. Test failure/
+recovery dispatches use a separate clearly marked synthetic incident. These are
+optional operational resources outside the published npm runtime. Read the
+companion README for setup, billing and GitHub schedule/notification limitations.
